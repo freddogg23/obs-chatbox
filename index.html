@@ -1,198 +1,5 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>OBS Twitch Chatbox (Menu + Hash Settings, Stable)</title>
-
-<style>
-  :root{
-    --font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-    --font-size: 24px;
-    --line-height: 1.25;
-    --gap: 10px;
-
-    --msg-bg: rgba(0,0,0,0.35);
-    --radius: 14px;
-    --padY: 10px;
-    --padX: 14px;
-
-    --shadow: 0 6px 22px rgba(0,0,0,0.35);
-    --text-shadow: 0 2px 8px rgba(0,0,0,0.6);
-
-    --emote-size: 34px;
-    --fade-ms: 220;
-  }
-
-  html,body{margin:0;height:100%;background:transparent;overflow:hidden;font-family:var(--font-family)}
-  #wrap{position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:flex-start;padding:12px;box-sizing:border-box}
-  #chat{width:100%;display:flex;flex-direction:column;gap:var(--gap);pointer-events:none}
-
-  .msg{
-    display:flex;gap:10px;background:var(--msg-bg);border-radius:var(--radius);
-    padding:calc(var(--padY)*1px) calc(var(--padX)*1px);
-    box-shadow:var(--shadow);
-    backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
-    opacity:0;transform:translateY(10px);
-    transition:opacity var(--fade-ms)ms ease,transform var(--fade-ms)ms ease;
-  }
-  .msg.show{opacity:1;transform:translateY(0)}
-
-  .left{display:flex;flex-direction:column;gap:6px;min-width:0;width:100%}
-  .topline{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
-
-  .badges{display:flex;gap:4px;align-items:center}
-  .badge{
-    width:18px;height:18px;border-radius:6px;
-    background:rgba(255,255,255,0.14);
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
-    display:inline-flex;align-items:center;justify-content:center;
-    flex:0 0 auto;
-  }
-  .badge svg{width:13px;height:13px;opacity:.92}
-  .badgeText{
-    font-size:12px;line-height:1;padding:2px 6px;border-radius:999px;
-    background:rgba(255,255,255,0.14);
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
-  }
-
-  .name{
-    font-size:var(--font-size);line-height:var(--line-height);
-    font-weight:800;text-shadow:var(--text-shadow);
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%;
-  }
-
-  .text{
-    font-size:var(--font-size);line-height:var(--line-height);
-    font-weight:600;text-shadow:var(--text-shadow);
-    word-break:break-word;overflow-wrap:anywhere;min-width:0;
-  }
-
-  img.emote{
-    width: var(--emote-size);
-    height: var(--emote-size);
-    vertical-align: -8px;
-    margin: 0 2px;
-  }
-
-  #pill{
-    position:absolute;left:10px;top:10px;z-index:40;
-    font-size:12px;padding:8px 10px;border-radius:999px;
-    background:rgba(0,0,0,0.45);color:rgba(255,255,255,0.95);
-    box-shadow:0 10px 28px rgba(0,0,0,0.35);
-    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-    max-width:calc(100% - 20px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-    pointer-events:none;
-  }
-
-  /* Menu */
-  #menuToggle{
-    position:absolute;top:10px;right:10px;z-index:50;
-    width:44px;height:44px;border-radius:14px;border:0;
-    background:rgba(0,0,0,0.45);color:#fff;cursor:pointer;
-    box-shadow:0 10px 28px rgba(0,0,0,0.45);
-    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-  }
-  #menu{
-    position:absolute;top:64px;right:10px;z-index:50;
-    width:380px;max-height:calc(100% - 80px);overflow:auto;
-    border-radius:18px;background:rgba(12,12,12,0.76);
-    color:rgba(255,255,255,0.95);
-    box-shadow:0 18px 50px rgba(0,0,0,0.55);
-    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-    padding:14px;display:none;pointer-events:auto;
-  }
-  #menu.open{display:block}
-
-  .mTitle{font-weight:900;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
-  .mRow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
-  .mRow.full{grid-template-columns:1fr}
-  label{font-size:12px;opacity:.9;display:block;margin-bottom:6px}
-  input,select,textarea{
-    width:100%;box-sizing:border-box;border-radius:12px;border:1px solid rgba(255,255,255,0.12);
-    background:rgba(255,255,255,0.06);color:#fff;padding:10px;outline:none;
-  }
-  input[type="color"]{padding:0;height:42px}
-  textarea{min-height:90px;resize:vertical;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.3}
-  .btnRow{display:flex;gap:10px;margin-top:10px}
-  .btn{
-    flex:1;cursor:pointer;border:0;border-radius:14px;padding:10px 12px;
-    font-weight:900;color:#fff;background:rgba(255,255,255,0.12);
-  }
-  .btn:hover{background:rgba(255,255,255,0.18)}
-  .hint{font-size:12px;opacity:.82;line-height:1.25;margin-top:8px}
-</style>
-</head>
-
-<body>
-  <div id="wrap"><div id="chat"></div></div>
-  <div id="pill">starting…</div>
-
-  <button id="menuToggle" title="Settings">⚙️</button>
-  <div id="menu">
-    <div class="mTitle">
-      <div>Chatbox Settings</div>
-      <div id="status" style="font-size:12px;opacity:.85;">idle</div>
-    </div>
-
-    <div class="mRow full">
-      <div><label>Channel (no @)</label><input id="channel"></div>
-    </div>
-
-    <div class="mRow">
-      <div><label>Message text color</label><input id="textColor" type="color"></div>
-      <div><label>Background opacity</label><input id="bgOpacity" type="number" min="0" max="1" step="0.05"></div>
-    </div>
-
-    <div class="mRow">
-      <div><label>Font size (px)</label><input id="fontSize" type="number" min="10" max="90" step="1"></div>
-      <div><label>Emote size (px)</label><input id="emoteSize" type="number" min="12" max="96" step="1"></div>
-    </div>
-
-    <div class="mRow">
-      <div><label>Max messages</label><input id="maxMessages" type="number" min="1" max="50" step="1"></div>
-      <div><label>Message lifetime (ms)</label><input id="ttlMs" type="number" min="2000" max="600000" step="500"></div>
-    </div>
-
-    <div class="mRow">
-      <div><label>Show badges</label>
-        <select id="showBadges"><option value="1">Yes</option><option value="0">No</option></select>
-      </div>
-      <div><label>Badge style</label>
-        <select id="badgeStyle"><option value="icon">Icon</option><option value="text">Text</option></select>
-      </div>
-    </div>
-
-    <div class="mRow">
-      <div><label>Enable 7TV</label>
-        <select id="enable7tv"><option value="1">Yes</option><option value="0">No</option></select>
-      </div>
-      <div><label>7TV set</label>
-        <select id="sevenTvMode"><option value="channel">Channel</option><option value="global">Global</option><option value="both">Both</option></select>
-      </div>
-    </div>
-
-    <div class="mRow full">
-      <div>
-        <label>Special name colors JSON (optional)</label>
-        <textarea id="specialColors" placeholder='{"someuser":"#ff00ff"}'></textarea>
-        <div class="hint">Optional. If empty, Twitch name colors are used.</div>
-      </div>
-    </div>
-
-    <div class="btnRow">
-      <button class="btn" id="apply">Apply</button>
-      <button class="btn" id="copy">Copy URL</button>
-    </div>
-    <div class="btnRow">
-      <button class="btn" id="reset">Reset</button>
-      <button class="btn" id="hideMenu">Hide menu</button>
-    </div>
-
-    <div class="hint">
-      Settings persist via the URL hash (<b>#…</b>) — no LocalStorage. Stable reconnect logic.
-    </div>
-  </div>
+<!-- same HTML/CSS as your current "Stable" version above -->
+<!-- ONLY CHANGE: replace the <script> ... </script> in your file with this script block -->
 
 <script>
   const $ = (id)=>document.getElementById(id);
@@ -263,7 +70,6 @@
     cfg.sevenMode = (cfg.sevenMode === "global" || cfg.sevenMode === "both") ? cfg.sevenMode : "channel";
 
     cfg.special = cfg.special || "";
-
     return cfg;
   }
 
@@ -297,10 +103,8 @@
   async function load7tv(login, mode){
     sevenTvMap.clear();
     sevenTvReady = false;
-
     const wantsGlobal = (mode === "global" || mode === "both");
     const wantsChannel = (mode === "channel" || mode === "both");
-
     try{
       if (wantsGlobal){
         const global = await fetchJson("https://7tv.io/v3/emote-sets/global");
@@ -504,11 +308,20 @@
     }
   }
 
-  // ---------- Stable WebSocket connect ----------
+  // ---------- Stable WebSocket connect + backoff + keepalive ----------
   const WS_URL = "wss://irc-ws.chat.twitch.tv:443";
   let ws = null;
   let connToken = 0;
+
   let reconnectTimer = null;
+  let backoffMs = 2000;            // grows up to 16000
+  const BACKOFF_MAX = 16000;
+
+  let keepAliveTimer = null;
+  function clearTimers(){
+    if (reconnectTimer){ clearTimeout(reconnectTimer); reconnectTimer = null; }
+    if (keepAliveTimer){ clearInterval(keepAliveTimer); keepAliveTimer = null; }
+  }
 
   function detachAndClose(){
     if (!ws) return;
@@ -519,19 +332,24 @@
     ws = null;
   }
 
+  function scheduleReconnect(){
+    clearTimers(); // keep it clean: only 1 timer
+    const wait = backoffMs;
+    backoffMs = Math.min(BACKOFF_MAX, backoffMs * 2);
+    setStatus(`reconnecting in ${Math.round(wait/1000)}s…`);
+    reconnectTimer = setTimeout(()=>connect(getConfig()), wait);
+  }
+
   async function connect(cfg){
     connToken++;
     const token = connToken;
 
-    // cancel any pending reconnects
-    if (reconnectTimer){ clearTimeout(reconnectTimer); reconnectTimer = null; }
-
-    // stop previous socket without letting it schedule reconnects
+    clearTimers();
     detachAndClose();
 
     applyCss(cfg);
 
-    // 7TV load (optional) — only keep result if still latest token
+    // 7TV load (optional)
     if (cfg.seven === "1"){
       setStatus(`loading 7TV…`);
       try{ await load7tv(cfg.channel, cfg.sevenMode); }catch(e){}
@@ -545,10 +363,23 @@
 
     ws.onopen = ()=>{
       if (token !== connToken) return;
+
+      // reset backoff on successful open
+      backoffMs = 2000;
+
       ws.send("CAP REQ :twitch.tv/tags twitch.tv/commands twitch.tv/membership");
       ws.send("PASS SCHMOOPIIE");
       ws.send("NICK justinfan" + Math.floor(1000 + Math.random()*9000));
       ws.send(`JOIN #${cfg.channel}`);
+
+      // Keepalive: send PING every 45s
+      keepAliveTimer = setInterval(()=>{
+        try{
+          if (ws && ws.readyState === WebSocket.OPEN){
+            ws.send("PING :keepalive");
+          }
+        }catch(e){}
+      }, 45000);
     };
 
     ws.onmessage = (ev)=>{
@@ -556,8 +387,17 @@
 
       const lines = (ev.data||"").split("\r\n").filter(Boolean);
       for (const line of lines){
-        if (line.startsWith("PING")){ ws.send("PONG :tmi.twitch.tv"); continue; }
-        if (line.includes(" JOIN #")) setStatus(`online ✅ #${cfg.channel} • text=${cfg.text}`);
+        if (line.startsWith("PING")){
+          try{ ws.send("PONG :tmi.twitch.tv"); }catch(e){}
+          continue;
+        }
+        // server replies to our keepalive PING with PONG; ignore
+        if (line.startsWith(":tmi.twitch.tv PONG")) continue;
+
+        if (line.includes(" JOIN #")){
+          setStatus(`online ✅ #${cfg.channel} • text=${cfg.text}`);
+        }
+
         if (line.includes(" PRIVMSG ")){
           const p = parsePrivmsg(line);
           if (!p) continue;
@@ -575,34 +415,33 @@
 
     ws.onerror = ()=>{
       if (token !== connToken) return;
-      setStatus(`error ❌ websocket`);
+      // Let onclose drive reconnect; just show info
+      setStatus(`error ❌ websocket (waiting for close)`);
     };
 
     ws.onclose = (e)=>{
       if (token !== connToken) return;
-      setStatus(`closed ❌ code=${e.code} (reconnecting…)`);
-      reconnectTimer = setTimeout(()=>connect(getConfig()), 2000);
+      clearTimers();
+      detachAndClose();
+      setStatus(`closed ❌ code=${e.code} (will retry)`);
+      scheduleReconnect();
     };
   }
 
   // ---------- Menu wiring ----------
   $("menuToggle").addEventListener("click", ()=> $("menu").classList.toggle("open"));
-
   $("apply").addEventListener("click", async ()=>{
     const cfg = readMenu();
     writeHash(cfg);
     await connect(cfg);
   });
-
   $("copy").addEventListener("click", copyUrl);
-
   $("reset").addEventListener("click", async ()=>{
     location.hash = "";
     const cfg = getConfig();
     fillMenu(cfg);
     await connect(cfg);
   });
-
   $("hideMenu").addEventListener("click", ()=>{
     const base = location.origin + location.pathname + "?menu=0";
     location.href = base + location.hash;
@@ -613,11 +452,12 @@
   fillMenu(cfg0);
   applyCss(cfg0);
 
+  // preview message
   addMessage({
     username:"chatbox",
     displayName:"Chatbox",
     tags:{ color:"#00e5ff", badges:{ broadcaster:"1" } },
-    message:"Stable menu build loaded. Change settings → Apply. It should stay online now.",
+    message:"Backoff+Keepalive build loaded. If OBS drops idle sockets, this fixes it.",
     cfg: cfg0
   });
 
@@ -628,5 +468,3 @@
 
   connect(cfg0);
 </script>
-</body>
-</html>
