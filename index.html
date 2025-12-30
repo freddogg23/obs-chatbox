@@ -1,470 +1,107 @@
-<!-- same HTML/CSS as your current "Stable" version above -->
-<!-- ONLY CHANGE: replace the <script> ... </script> in your file with this script block -->
+// ====== Twitch creds (sessionStorage) ======
+const CREDS_KEY = "twitch_creds_v1";
 
-<script>
-  const $ = (id)=>document.getElementById(id);
-  const chatEl = $("chat");
-  const pill = $("pill");
-  const statusEl = $("status");
-  const qs = new URLSearchParams(location.search);
+function getCreds() {
+  try { return JSON.parse(sessionStorage.getItem(CREDS_KEY) || "null"); }
+  catch { return null; }
+}
 
-  const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
-  const esc=(s)=>(s??"").toString()
-    .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;").replaceAll("'","&#039;");
+function setCreds(clientId, token) {
+  sessionStorage.setItem(CREDS_KEY, JSON.stringify({ clientId, token }));
+}
 
-  function setStatus(t){
-    statusEl.textContent = t;
-    pill.textContent = t;
-    console.log(t);
-  }
+function clearCreds() {
+  sessionStorage.removeItem(CREDS_KEY);
+}
 
-  // ---------- Config: query defaults + hash overrides ----------
-  const DEFAULTS = {
-    channel: (qs.get("channel") || "freddogg23").replace(/^@/,"").toLowerCase(),
-    text: (qs.get("text") || "ffffff").replace("#",""),
-    bg: parseFloat(qs.get("bg") ?? "0.35"),
-    size: parseInt(qs.get("size") ?? "24", 10),
-    emote: parseInt(qs.get("emote") ?? "34", 10),
-    ttl: parseInt(qs.get("ttl") ?? "16000", 10),
-    max: parseInt(qs.get("max") ?? "10", 10),
-    badges: (qs.get("badges") ?? "1"),
-    badgeStyle: (qs.get("badgeStyle") ?? "icon"),
-    seven: (qs.get("seven") ?? "1"),
-    sevenMode: (qs.get("sevenMode") ?? "channel"),
-    special: (qs.get("special") ?? ""),
-    menu: (qs.get("menu") ?? "1")
-  };
+// Call this from your settings menu "Save" button:
+function saveCredsFromInputs() {
+  const clientId = document.getElementById("twitchClientId").value.trim();
+  const token = document.getElementById("twitchToken").value.trim();
+  if (!clientId || !token) throw new Error("Missing Client ID or Token");
+  setCreds(clientId, token);
+}
 
-  function parseHash(){
-    const h = (location.hash || "").replace(/^#/, "");
-    const out = {};
-    if (!h) return out;
-    for (const part of h.split("&")){
-      const [k,v] = part.split("=");
-      if (!k) continue;
-      out[decodeURIComponent(k)] = decodeURIComponent(v ?? "");
-    }
-    return out;
-  }
+// ====== Twitch API helpers ======
+async function twitchFetch(url) {
+  const creds = getCreds();
+  if (!creds?.clientId || !creds?.token) throw new Error("No Twitch creds in session");
 
-  function getConfig(){
-    const h = parseHash();
-    const cfg = {...DEFAULTS, ...h};
-
-    cfg.channel = (cfg.channel || "freddogg23").replace(/^@/,"").toLowerCase();
-
-    const hex = (cfg.text || "ffffff").replace("#","").trim();
-    cfg.text = /^[0-9a-f]{6}$/i.test(hex) ? hex.toLowerCase() : "ffffff";
-
-    cfg.bg = clamp(parseFloat(cfg.bg ?? 0.35), 0, 1);
-    cfg.size = clamp(parseInt(cfg.size ?? 24,10) || 24, 10, 90);
-    cfg.emote = clamp(parseInt(cfg.emote ?? 34,10) || 34, 12, 96);
-    cfg.ttl = clamp(parseInt(cfg.ttl ?? 16000,10) || 16000, 2000, 600000);
-    cfg.max = clamp(parseInt(cfg.max ?? 10,10) || 10, 1, 50);
-
-    cfg.badges = (cfg.badges === "0" ? "0" : "1");
-    cfg.badgeStyle = (cfg.badgeStyle === "text" ? "text" : "icon");
-
-    cfg.seven = (cfg.seven === "0" ? "0" : "1");
-    cfg.sevenMode = (cfg.sevenMode === "global" || cfg.sevenMode === "both") ? cfg.sevenMode : "channel";
-
-    cfg.special = cfg.special || "";
-    return cfg;
-  }
-
-  function applyCss(cfg){
-    document.documentElement.style.setProperty("--msg-bg", `rgba(0,0,0,${cfg.bg})`);
-    document.documentElement.style.setProperty("--font-size", `${cfg.size}px`);
-    document.documentElement.style.setProperty("--emote-size", `${cfg.emote}px`);
-  }
-
-  // ---------- 7TV ----------
-  const sevenTvMap = new Map();
-  let sevenTvReady = false;
-
-  async function fetchJson(url){
-    const r = await fetch(url, { cache: "no-store" });
-    if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
-    return await r.json();
-  }
-  function pickSevenTvFileUrl(emoteObj){
-    const host = emoteObj?.data?.host;
-    if (!host?.url || !Array.isArray(host.files)) return null;
-    const names = host.files.map(f => f.name);
-    const pick =
-      names.includes("4x.webp") ? "4x.webp" :
-      names.includes("3x.webp") ? "3x.webp" :
-      names.includes("2x.webp") ? "2x.webp" :
-      names.includes("1x.webp") ? "1x.webp" :
-      names[0];
-    return `https:${host.url}/${pick}`;
-  }
-  async function load7tv(login, mode){
-    sevenTvMap.clear();
-    sevenTvReady = false;
-    const wantsGlobal = (mode === "global" || mode === "both");
-    const wantsChannel = (mode === "channel" || mode === "both");
-    try{
-      if (wantsGlobal){
-        const global = await fetchJson("https://7tv.io/v3/emote-sets/global");
-        for (const e of (global?.emotes || [])){
-          const url = pickSevenTvFileUrl(e);
-          if (e?.name && url) sevenTvMap.set(e.name, url);
-        }
-      }
-      if (wantsChannel){
-        const user = await fetchJson(`https://7tv.io/v3/users/twitch/${encodeURIComponent(login)}`);
-        for (const e of (user?.emote_set?.emotes || [])){
-          const url = pickSevenTvFileUrl(e);
-          if (e?.name && url) sevenTvMap.set(e.name, url);
-        }
-      }
-      sevenTvReady = true;
-    }catch(e){
-      sevenTvReady = false;
-    }
-  }
-  function render7tv(text, cfg){
-    if (cfg.seven !== "1" || !sevenTvReady || sevenTvMap.size === 0) return esc(text);
-    const parts = text.split(/(\s+)/);
-    return parts.map(tok => {
-      if (/^\s+$/.test(tok)) return tok;
-      const url = sevenTvMap.get(tok);
-      if (!url) return esc(tok);
-      return `<img class="emote" alt="${esc(tok)}" src="${url}" loading="lazy" />`;
-    }).join("");
-  }
-
-  // ---------- Badges ----------
-  const BadgeSVG = {
-    broadcaster: `<svg viewBox="0 0 24 24" fill="none"><path d="M7 21h10v-2H7v2Zm10.7-10.1c1.3-1.1 2.3-2.6 2.3-4.9V3H4v3c0 2.3 1 3.8 2.3 4.9C6 12.7 5 14.6 5 17h14c0-2.4-1-4.3-1.3-6.1Z" fill="white" opacity=".9"/></svg>`,
-    mod: `<svg viewBox="0 0 24 24" fill="none"><path d="M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5l-8-3Z" fill="white" opacity=".9"/></svg>`,
-    vip: `<svg viewBox="0 0 24 24" fill="none"><path d="M12 3l2.3 4.9 5.4.8-3.9 3.8.9 5.4L12 15.9 7.3 18l.9-5.4-3.9-3.8 5.4-.8L12 3Z" fill="white" opacity=".9"/></svg>`,
-    sub: `<svg viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.6-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.4-7 10-7 10Z" fill="white" opacity=".9"/></svg>`
-  };
-  function parseBadges(badgesStr){
-    const out = {};
-    if (!badgesStr) return out;
-    for (const p of badgesStr.split(",")){
-      const [k,v] = p.split("/");
-      if (k) out[k] = v || "1";
-    }
-    return out;
-  }
-  function badgeList(tags){
-    const b = tags?.badges || {};
-    const list = [];
-    if (b.broadcaster) list.push(["broadcaster","BC"]);
-    if (b.moderator) list.push(["mod","MOD"]);
-    if (b.vip) list.push(["vip","VIP"]);
-    if (b.subscriber || b.founder) list.push(["sub","SUB"]);
-    return list;
-  }
-
-  // ---------- IRC parsing ----------
-  function decodeTag(v){
-    return (v||"")
-      .replaceAll("\\:", ";").replaceAll("\\s", " ")
-      .replaceAll("\\\\", "\\").replaceAll("\\r", "\r").replaceAll("\\n", "\n");
-  }
-  function parseTags(tagPart){
-    const tags = {};
-    if (!tagPart) return tags;
-    for (const pair of tagPart.split(";")){
-      const i = pair.indexOf("=");
-      if (i === -1) continue;
-      tags[pair.slice(0,i)] = decodeTag(pair.slice(i+1));
-    }
-    return tags;
-  }
-  function parsePrivmsg(line){
-    let tags = {};
-    let rest = line;
-    if (rest.startsWith("@")){
-      const sp = rest.indexOf(" ");
-      tags = parseTags(rest.slice(1, sp));
-      rest = rest.slice(sp+1);
-    }
-    const m = rest.match(/^:([^ ]+)\s+PRIVMSG\s+#[^ ]+\s+:(.*)$/);
-    if (!m) return null;
-    const username = (m[1].split("!")[0]) || tags.login || "unknown";
-    return { tags, username, message: m[2] ?? "" };
-  }
-
-  function getSpecialMap(cfg){
-    if (!cfg.special) return {};
-    try{ return JSON.parse(cfg.special) || {}; }catch(e){ return {}; }
-  }
-  function pickNameColor(username, tags, cfg){
-    const map = getSpecialMap(cfg);
-    const u = (username||"").toLowerCase();
-    if (map[u]) return map[u];
-    const c = tags?.color;
-    if (c && /^#([0-9a-f]{6})$/i.test(c)) return c;
-    return "#a7ffef";
-  }
-
-  function addMessage({username, displayName, tags, message, cfg}){
-    while (chatEl.children.length >= cfg.max) chatEl.removeChild(chatEl.firstChild);
-
-    const showBadges = cfg.badges === "1";
-    const style = cfg.badgeStyle;
-    const b = badgeList(tags);
-
-    let badgesHtml = "";
-    if (showBadges && b.length){
-      if (style === "text"){
-        badgesHtml = `<span class="badges">` + b.map(([k,t])=>`<span class="badgeText" title="${k}">${t}</span>`).join("") + `</span>`;
-      } else {
-        badgesHtml = `<span class="badges">` + b.map(([k])=>`<span class="badge" title="${k}">${BadgeSVG[k]||""}</span>`).join("") + `</span>`;
-      }
-    }
-
-    const textColor = "#" + cfg.text;
-    const nameColor = pickNameColor(username, tags, cfg);
-    const bodyHtml = render7tv(message, cfg);
-
-    const el = document.createElement("div");
-    el.className = "msg";
-    el.innerHTML = `
-      <div class="left">
-        <div class="topline">
-          ${badgesHtml}
-          <div class="name" style="color:${nameColor}">${esc(displayName || username)}</div>
-        </div>
-        <div class="text" style="color:${textColor}">${bodyHtml}</div>
-      </div>
-    `;
-    chatEl.appendChild(el);
-    requestAnimationFrame(()=>el.classList.add("show"));
-
-    setTimeout(()=>{
-      el.classList.remove("show");
-      setTimeout(()=>{ if (el.parentNode) el.parentNode.removeChild(el); }, 260);
-    }, cfg.ttl);
-  }
-
-  // ---------- Hash persistence ----------
-  function fillMenu(cfg){
-    $("channel").value = cfg.channel;
-    $("textColor").value = "#" + cfg.text;
-    $("bgOpacity").value = cfg.bg;
-    $("fontSize").value = cfg.size;
-    $("emoteSize").value = cfg.emote;
-    $("maxMessages").value = cfg.max;
-    $("ttlMs").value = cfg.ttl;
-    $("showBadges").value = cfg.badges;
-    $("badgeStyle").value = cfg.badgeStyle;
-    $("enable7tv").value = cfg.seven;
-    $("sevenTvMode").value = cfg.sevenMode;
-    $("specialColors").value = cfg.special || "";
-  }
-
-  function readMenu(){
-    const hex = ($("textColor").value || "#ffffff").replace("#","");
-    const specialRaw = ($("specialColors").value || "").trim();
-    return {
-      channel: ($("channel").value || "freddogg23").trim().replace(/^@/,"").toLowerCase(),
-      text: /^[0-9a-f]{6}$/i.test(hex) ? hex.toLowerCase() : "ffffff",
-      bg: clamp(parseFloat($("bgOpacity").value ?? "0.35"), 0, 1),
-      size: clamp(parseInt($("fontSize").value ?? "24",10) || 24, 10, 90),
-      emote: clamp(parseInt($("emoteSize").value ?? "34",10) || 34, 12, 96),
-      max: clamp(parseInt($("maxMessages").value ?? "10",10) || 10, 1, 50),
-      ttl: clamp(parseInt($("ttlMs").value ?? "16000",10) || 16000, 2000, 600000),
-      badges: $("showBadges").value === "0" ? "0" : "1",
-      badgeStyle: $("badgeStyle").value === "text" ? "text" : "icon",
-      seven: $("enable7tv").value === "0" ? "0" : "1",
-      sevenMode: ($("sevenTvMode").value === "global" || $("sevenTvMode").value === "both") ? $("sevenTvMode").value : "channel",
-      special: specialRaw
-    };
-  }
-
-  function writeHash(cfg){
-    const parts = [];
-    const put = (k,v)=> parts.push(encodeURIComponent(k) + "=" + encodeURIComponent(String(v)));
-    put("channel", cfg.channel);
-    put("text", cfg.text);
-    put("bg", cfg.bg);
-    put("size", cfg.size);
-    put("emote", cfg.emote);
-    put("max", cfg.max);
-    put("ttl", cfg.ttl);
-    put("badges", cfg.badges);
-    put("badgeStyle", cfg.badgeStyle);
-    put("seven", cfg.seven);
-    put("sevenMode", cfg.sevenMode);
-    if ((cfg.special || "").trim()) put("special", cfg.special.trim());
-    location.hash = parts.join("&");
-  }
-
-  async function copyUrl(){
-    const url = location.origin + location.pathname + location.search + location.hash;
-    try{
-      await navigator.clipboard.writeText(url);
-      setStatus("copied URL ✅");
-    }catch(e){
-      prompt("Copy this URL:", url);
-    }
-  }
-
-  // ---------- Stable WebSocket connect + backoff + keepalive ----------
-  const WS_URL = "wss://irc-ws.chat.twitch.tv:443";
-  let ws = null;
-  let connToken = 0;
-
-  let reconnectTimer = null;
-  let backoffMs = 2000;            // grows up to 16000
-  const BACKOFF_MAX = 16000;
-
-  let keepAliveTimer = null;
-  function clearTimers(){
-    if (reconnectTimer){ clearTimeout(reconnectTimer); reconnectTimer = null; }
-    if (keepAliveTimer){ clearInterval(keepAliveTimer); keepAliveTimer = null; }
-  }
-
-  function detachAndClose(){
-    if (!ws) return;
-    try{
-      ws.onopen = ws.onmessage = ws.onerror = ws.onclose = null;
-      ws.close();
-    }catch(e){}
-    ws = null;
-  }
-
-  function scheduleReconnect(){
-    clearTimers(); // keep it clean: only 1 timer
-    const wait = backoffMs;
-    backoffMs = Math.min(BACKOFF_MAX, backoffMs * 2);
-    setStatus(`reconnecting in ${Math.round(wait/1000)}s…`);
-    reconnectTimer = setTimeout(()=>connect(getConfig()), wait);
-  }
-
-  async function connect(cfg){
-    connToken++;
-    const token = connToken;
-
-    clearTimers();
-    detachAndClose();
-
-    applyCss(cfg);
-
-    // 7TV load (optional)
-    if (cfg.seven === "1"){
-      setStatus(`loading 7TV…`);
-      try{ await load7tv(cfg.channel, cfg.sevenMode); }catch(e){}
-      if (token !== connToken) return;
-    } else {
-      sevenTvReady = false; sevenTvMap.clear();
-    }
-
-    setStatus(`connecting… #${cfg.channel} • text=${cfg.text}`);
-    ws = new WebSocket(WS_URL);
-
-    ws.onopen = ()=>{
-      if (token !== connToken) return;
-
-      // reset backoff on successful open
-      backoffMs = 2000;
-
-      ws.send("CAP REQ :twitch.tv/tags twitch.tv/commands twitch.tv/membership");
-      ws.send("PASS SCHMOOPIIE");
-      ws.send("NICK justinfan" + Math.floor(1000 + Math.random()*9000));
-      ws.send(`JOIN #${cfg.channel}`);
-
-      // Keepalive: send PING every 45s
-      keepAliveTimer = setInterval(()=>{
-        try{
-          if (ws && ws.readyState === WebSocket.OPEN){
-            ws.send("PING :keepalive");
-          }
-        }catch(e){}
-      }, 45000);
-    };
-
-    ws.onmessage = (ev)=>{
-      if (token !== connToken) return;
-
-      const lines = (ev.data||"").split("\r\n").filter(Boolean);
-      for (const line of lines){
-        if (line.startsWith("PING")){
-          try{ ws.send("PONG :tmi.twitch.tv"); }catch(e){}
-          continue;
-        }
-        // server replies to our keepalive PING with PONG; ignore
-        if (line.startsWith(":tmi.twitch.tv PONG")) continue;
-
-        if (line.includes(" JOIN #")){
-          setStatus(`online ✅ #${cfg.channel} • text=${cfg.text}`);
-        }
-
-        if (line.includes(" PRIVMSG ")){
-          const p = parsePrivmsg(line);
-          if (!p) continue;
-
-          addMessage({
-            username: p.username,
-            displayName: p.tags["display-name"] || p.username,
-            tags: { color: p.tags.color || null, badges: parseBadges(p.tags.badges || "") },
-            message: p.message,
-            cfg
-          });
-        }
-      }
-    };
-
-    ws.onerror = ()=>{
-      if (token !== connToken) return;
-      // Let onclose drive reconnect; just show info
-      setStatus(`error ❌ websocket (waiting for close)`);
-    };
-
-    ws.onclose = (e)=>{
-      if (token !== connToken) return;
-      clearTimers();
-      detachAndClose();
-      setStatus(`closed ❌ code=${e.code} (will retry)`);
-      scheduleReconnect();
-    };
-  }
-
-  // ---------- Menu wiring ----------
-  $("menuToggle").addEventListener("click", ()=> $("menu").classList.toggle("open"));
-  $("apply").addEventListener("click", async ()=>{
-    const cfg = readMenu();
-    writeHash(cfg);
-    await connect(cfg);
-  });
-  $("copy").addEventListener("click", copyUrl);
-  $("reset").addEventListener("click", async ()=>{
-    location.hash = "";
-    const cfg = getConfig();
-    fillMenu(cfg);
-    await connect(cfg);
-  });
-  $("hideMenu").addEventListener("click", ()=>{
-    const base = location.origin + location.pathname + "?menu=0";
-    location.href = base + location.hash;
+  const r = await fetch(url, {
+    headers: {
+      "Client-ID": creds.clientId,
+      "Authorization": `Bearer ${creds.token}`,
+    },
+    cache: "no-store"
   });
 
-  // ---------- Boot ----------
-  const cfg0 = getConfig();
-  fillMenu(cfg0);
-  applyCss(cfg0);
+  if (!r.ok) {
+    const text = await r.text().catch(()=> "");
+    throw new Error(`Twitch API ${r.status}: ${text || r.statusText}`);
+  }
+  return await r.json();
+}
 
-  // preview message
-  addMessage({
-    username:"chatbox",
-    displayName:"Chatbox",
-    tags:{ color:"#00e5ff", badges:{ broadcaster:"1" } },
-    message:"Backoff+Keepalive build loaded. If OBS drops idle sockets, this fixes it.",
-    cfg: cfg0
-  });
+async function getBroadcasterId(login) {
+  const data = await twitchFetch(`https://api.twitch.tv/helix/users?login=${encodeURIComponent(login)}`);
+  const id = data?.data?.[0]?.id;
+  if (!id) throw new Error("Could not resolve broadcaster_id");
+  return id;
+}
 
-  if ((cfg0.menu || "1") === "0") {
-    $("menuToggle").style.display = "none";
-    $("menu").style.display = "none";
+// ====== Badge cache ======
+let badgeCache = {
+  global: new Map(),   // setId -> Map(version -> imageUrl)
+  channel: new Map(),  // setId -> Map(version -> imageUrl)
+  loadedFor: null
+};
+
+function ingestBadges(apiData, targetMap) {
+  // apiData.data: [{ set_id, versions:[{id, image_url_1x, image_url_2x, image_url_4x}, ...] }, ...]
+  for (const set of (apiData?.data || [])) {
+    const setId = set.set_id;
+    const verMap = new Map();
+    for (const v of (set.versions || [])) {
+      // pick 2x (good balance); you can switch to 4x if you want
+      verMap.set(v.id, v.image_url_2x || v.image_url_1x || v.image_url_4x);
+    }
+    targetMap.set(setId, verMap);
+  }
+}
+
+async function loadBadgesForChannel(login) {
+  const broadcasterId = await getBroadcasterId(login);
+  const [globalBadges, channelBadges] = await Promise.all([
+    twitchFetch("https://api.twitch.tv/helix/chat/badges/global"),
+    twitchFetch(`https://api.twitch.tv/helix/chat/badges?broadcaster_id=${encodeURIComponent(broadcasterId)}`)
+  ]);
+
+  badgeCache.global = new Map();
+  badgeCache.channel = new Map();
+  ingestBadges(globalBadges, badgeCache.global);
+  ingestBadges(channelBadges, badgeCache.channel);
+  badgeCache.loadedFor = login;
+}
+
+// Convert IRC tags.badges into image URLs
+// tags.badges might be { subscriber:"6", moderator:"1", ... }
+function getBadgeImgUrlsFromTags(tags) {
+  const badges = tags?.badges || {};
+  const urls = [];
+
+  for (const [setId, version] of Object.entries(badges)) {
+    // channel badges override global if present
+    const chanSet = badgeCache.channel.get(setId);
+    const globSet = badgeCache.global.get(setId);
+
+    const url =
+      chanSet?.get(version) ||
+      globSet?.get(version) ||
+      chanSet?.get("1") ||
+      globSet?.get("1");
+
+    if (url) urls.push({ setId, url });
   }
 
-  connect(cfg0);
-</script>
+  return urls;
+}
