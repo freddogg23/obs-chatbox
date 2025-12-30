@@ -86,6 +86,7 @@
     pointer-events:none;
   }
 
+  /* Menu */
   #menuToggle{
     position:absolute;top:10px;right:10px;z-index:50;
     width:44px;height:44px;border-radius:14px;border:0;
@@ -139,7 +140,7 @@
   </div>
 
   <div class="warn">
-    Paints debugging is enabled. After you send a message, the pill will show <b>paintSelf=1</b> if your paint applied.
+    Your IDs are prefilled. After you send a message as <b>freddogg23</b>, the pill will show <b>paintSelf=1</b> if your paint applied.
   </div>
 
   <div class="mRow full">
@@ -152,7 +153,7 @@
       <input id="myTwitchId" />
     </div>
     <div>
-      <label>My 7TV user id (object_id)</label>
+      <label>My 7TV User ID (object_id)</label>
       <input id="my7tvUserId" />
     </div>
   </div>
@@ -255,7 +256,6 @@
   window.addEventListener("unhandledrejection", (e)=> showErr(e?.reason?.message || String(e?.reason)));
 })();
 
-/* ===== util ===== */
 const $ = (id)=>document.getElementById(id);
 const chatEl = $("chat");
 const pill = $("pill");
@@ -269,10 +269,9 @@ const esc=(s)=>(s??"").toString()
 function setStatus(t){
   statusEl.textContent = t;
   pill.textContent = t;
-  console.log(t);
 }
 
-/* ===== config (hash only for normal settings; creds stay in sessionStorage) ===== */
+/* ===== config via hash ===== */
 const DEFAULTS = {
   channel: "freddogg23",
   myTwitchId: "68238870",
@@ -404,16 +403,23 @@ function readMenu(){
   };
 }
 
+async function copyUrl(){
+  const url = location.origin + location.pathname + location.search + location.hash;
+  try{ await navigator.clipboard.writeText(url); setStatus("copied URL ✅"); }
+  catch(e){ prompt("Copy this URL:", url); }
+}
+
 /* ===== creds in sessionStorage ===== */
 const CREDS_KEY="twitch_creds_session_v1";
 function getCreds(){ try{ return JSON.parse(sessionStorage.getItem(CREDS_KEY)||"null"); }catch{ return null; } }
 function setCreds(clientId, token){ sessionStorage.setItem(CREDS_KEY, JSON.stringify({clientId, token})); }
 function credsPresent(){ const c=getCreds(); return !!(c?.clientId && c?.token); }
 
-/* ===== 7TV PAINTS: double identifier ===== */
-const paintCache=new Map();
-let paintHits=0;
-let paintSelf=0;
+/* ===== robust paint fetch ===== */
+const paintCache = new Map();
+let paintHits = 0;
+let paintSelf = 0;
+let paintDebug = "init";
 
 function int32ToHexRGBA(n){
   let u = Number(n);
@@ -453,74 +459,96 @@ function buildPaintCss(paint){
 
 function pickPaint(data){
   if (!data) return null;
-  if (data.paint && (data.paint.stops || data.paint.color)) return data.paint;
   const paints = Array.isArray(data.paints) ? data.paints : [];
-  return paints.find(p => p && (p.stops || p.color)) || null;
+  return paints.find(p => p && (Array.isArray(p.stops) || Number.isFinite(p.color))) || null;
 }
 
-async function fetchCosmetics(user_identifier, id){
-  const url = `https://api.7tv.app/v2/cosmetics?user_identifier=${encodeURIComponent(user_identifier)}&id=${encodeURIComponent(id)}`;
+async function tryFetchJson(url){
   const r = await fetch(url, { cache:"no-store" });
-  if (!r.ok) throw new Error(`7TV cosmetics ${user_identifier} ${r.status}`);
+  if (!r.ok) return null;
   return await r.json();
 }
 
-async function getPaintCssForSelf(cfg){
-  const key="self";
+async function get7tvV2UserByLogin(login){
+  const j = await tryFetchJson(`https://api.7tv.app/v2/users/${encodeURIComponent(login)}`);
+  return j && j.id ? j : null;
+}
+
+async function fetchCosmeticsAny(userIdentifier, id){
+  // try query and path variants
+  const urls = [
+    `https://api.7tv.app/v2/cosmetics?user_identifier=${encodeURIComponent(userIdentifier)}&id=${encodeURIComponent(id)}`,
+    `https://api.7tv.app/v2/cosmetics/${encodeURIComponent(userIdentifier)}/${encodeURIComponent(id)}`
+  ];
+  for (const u of urls){
+    const j = await tryFetchJson(u);
+    if (j) return { data:j, url:u };
+  }
+  return { data:null, url:null };
+}
+
+async function getSelfPaintCss(cfg){
+  const key = "self";
   if (paintCache.has(key)) return paintCache.get(key);
 
-  // Try twitch_id then object_id
-  let data=null;
-  try{ data = await fetchCosmetics("twitch_id", cfg.myTwitchId); }catch(e){}
-  let paint = pickPaint(data);
-  let css = buildPaintCss(paint);
-  if (css){
-    paintCache.set(key, css);
-    return css;
+  // Try twitch id
+  let res = await fetchCosmeticsAny("twitch_id", cfg.myTwitchId);
+  if (res.data){
+    const css = buildPaintCss(pickPaint(res.data));
+    if (css){
+      paintDebug = "twitch_id:" + res.url;
+      paintCache.set(key, css);
+      return css;
+    }
   }
 
-  try{ data = await fetchCosmetics("object_id", cfg.my7tv); }catch(e){}
-  paint = pickPaint(data);
-  css = buildPaintCss(paint);
+  // Try object_id with your known 7TV id
+  res = await fetchCosmeticsAny("object_id", cfg.my7tv);
+  if (res.data){
+    const css = buildPaintCss(pickPaint(res.data));
+    if (css){
+      paintDebug = "object_id:" + res.url;
+      paintCache.set(key, css);
+      return css;
+    }
+  }
 
-  paintCache.set(key, css || null);
-  return css || null;
+  // Resolve v2 user by login and retry object_id
+  const u = await get7tvV2UserByLogin(cfg.channel);
+  if (u?.id){
+    res = await fetchCosmeticsAny("object_id", u.id);
+    if (res.data){
+      const css = buildPaintCss(pickPaint(res.data));
+      if (css){
+        paintDebug = "v2user_object_id:" + res.url;
+        paintCache.set(key, css);
+        return css;
+      }
+    }
+  }
+
+  paintDebug = "none";
+  paintCache.set(key, null);
+  return null;
 }
 
-/* ===== minimal rendering to prove paint works (keeps your current overlay working; emotes/badges untouched here for brevity) =====
-   IMPORTANT: This file focuses on paint application correctness for your name. If you need the full previous badges+emotes pipeline
-   merged here too, say so and I’ll paste the combined full file again. */
-
-function applyNamePaint(el, css){
-  if (!css) return false;
-  el.classList.add("paintText");
-  el.style.cssText += css;
-  return true;
-}
-
-/* ===== Demo only: show your painted name when you send a message (you asked to fix paints first) ===== */
-async function demoPaint(){
-  const cfg=getConfig();
-  applyCss(cfg);
-
-  const css = await getPaintCssForSelf(cfg);
-  paintSelf = css ? 1 : 0;
-
-  // Create a demo line
+/* ===== minimal render to show paint working (without breaking your overlay) ===== */
+function addTestLine(name, css){
   const msg=document.createElement("div");
   msg.className="msg show";
-  const name=document.createElement("div");
-  name.className="name";
-  name.textContent="freddogg23";
-  if (css) applyNamePaint(name, css);
-
-  msg.innerHTML=`<div class="left"><div class="topline"></div><div class="text" style="color:#${cfg.text}">Paint test line</div></div>`;
-  msg.querySelector(".topline").appendChild(name);
+  msg.innerHTML=`<div class="left"><div class="topline"></div><div class="text">Paint test line</div></div>`;
+  const nameEl=document.createElement("div");
+  nameEl.className="name";
+  nameEl.textContent=name;
+  if (css){
+    nameEl.classList.add("paintText");
+    nameEl.style.cssText += css;
+  }
+  msg.querySelector(".topline").appendChild(nameEl);
   chatEl.appendChild(msg);
-
-  setStatus(`paintSelf=${paintSelf} (twitch_id=${cfg.myTwitchId} object_id=${cfg.my7tv})`);
 }
 
+/* ===== UI ===== */
 $("menuToggle").addEventListener("click", ()=> $("menu").classList.toggle("open"));
 
 $("saveCreds").addEventListener("click", ()=>{
@@ -531,31 +559,35 @@ $("saveCreds").addEventListener("click", ()=>{
   setStatus("creds saved (session) ✅");
 });
 
-$("apply").addEventListener("click", ()=>{
+$("apply").addEventListener("click", async ()=>{
   const cfg=readMenu();
   writeHash(cfg);
-  chatEl.innerHTML="";
-  demoPaint();
+  applyCss(cfg);
+  chatEl.innerHTML = "";
+
+  const css = await getSelfPaintCss(cfg);
+  paintSelf = css ? 1 : 0;
+  if (paintSelf) paintHits++;
+
+  addTestLine(cfg.channel, css);
+  setStatus(`paintSelf=${paintSelf} paintHits=${paintHits} paintDebug=${paintDebug}`);
 });
 
 $("reset").addEventListener("click", ()=>{
-  location.hash="";
-  const cfg=getConfig();
+  location.hash = "";
+  const cfg = getConfig();
   fillMenu(cfg);
-  chatEl.innerHTML="";
-  demoPaint();
 });
 
-$("copy").addEventListener("click", async ()=>{
-  const url = location.origin + location.pathname + location.search + location.hash;
-  try{ await navigator.clipboard.writeText(url); setStatus("copied URL ✅"); }
-  catch(e){ prompt("Copy this URL:", url); }
-});
+$("copy").addEventListener("click", copyUrl);
 
 /* ===== boot ===== */
-const cfg0=getConfig();
-fillMenu(cfg0);
-demoPaint();
+(function boot(){
+  const cfg=getConfig();
+  fillMenu(cfg);
+  applyCss(cfg);
+  setStatus("ready • click Apply to test paint");
+})();
 </script>
 </body>
 </html>
