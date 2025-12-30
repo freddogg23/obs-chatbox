@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>OBS Twitch Chatbox (Badges + 7TV Emotes + 7TV Paints)</title>
+<title>OBS Twitch Chatbox (Badges + 7TV Emotes + 7TV Paints v3)</title>
 
 <style>
   :root{
@@ -40,17 +40,6 @@
   .left{display:flex;flex-direction:column;gap:6px;min-width:0;width:100%}
   .topline{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
 
-  .badges{display:flex;gap:4px;align-items:center}
-  img.badgeImg{
-    width:18px;height:18px;border-radius:4px;vertical-align:-4px;
-    filter: drop-shadow(0 1px 4px rgba(0,0,0,0.35));
-  }
-  .badgeText{
-    font-size:12px;line-height:1;padding:2px 6px;border-radius:999px;
-    background:rgba(255,255,255,0.14);
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
-  }
-
   .name{
     font-size:var(--font-size);line-height:var(--line-height);
     font-weight:800;text-shadow:var(--text-shadow);
@@ -68,13 +57,6 @@
     word-break:break-word;overflow-wrap:anywhere;min-width:0;
   }
 
-  img.emote{
-    width: var(--emote-size);
-    height: var(--emote-size);
-    vertical-align: -8px;
-    margin: 0 2px;
-  }
-
   #pill{
     position:absolute;left:10px;top:10px;z-index:40;
     font-size:12px;padding:8px 10px;border-radius:999px;
@@ -85,45 +67,6 @@
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
     pointer-events:none;
   }
-
-  /* Menu */
-  #menuToggle{
-    position:absolute;top:10px;right:10px;z-index:50;
-    width:44px;height:44px;border-radius:14px;border:0;
-    background:rgba(0,0,0,0.45);color:#fff;cursor:pointer;
-    box-shadow:0 10px 28px rgba(0,0,0,0.45);
-    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-  }
-  #menu{
-    position:absolute;top:64px;right:10px;z-index:50;
-    width:460px;max-height:calc(100% - 80px);overflow:auto;
-    border-radius:18px;background:rgba(12,12,12,0.80);
-    color:rgba(255,255,255,0.95);
-    box-shadow:0 18px 50px rgba(0,0,0,0.55);
-    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-    padding:14px;display:none;pointer-events:auto;
-  }
-  #menu.open{display:block}
-
-  .mTitle{font-weight:900;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
-  .mRow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
-  .mRow.full{grid-template-columns:1fr}
-  label{font-size:12px;opacity:.9;display:block;margin-bottom:6px}
-  input,select,textarea{
-    width:100%;box-sizing:border-box;border-radius:12px;border:1px solid rgba(255,255,255,0.12);
-    background:rgba(255,255,255,0.06);color:#fff;padding:10px;outline:none;
-  }
-  input[type="color"]{padding:0;height:42px}
-  textarea{min-height:70px;resize:vertical;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.3}
-  .btnRow{display:flex;gap:10px;margin-top:10px}
-  .btn{
-    flex:1;cursor:pointer;border:0;border-radius:14px;padding:10px 12px;
-    font-weight:900;color:#fff;background:rgba(255,255,255,0.12);
-  }
-  .btn:hover{background:rgba(255,255,255,0.18)}
-  .hint{font-size:12px;opacity:.82;line-height:1.25;margin-top:8px}
-  .divider{height:1px;background:rgba(255,255,255,0.10);margin:12px 0}
-  .warn{font-size:12px;opacity:.85;line-height:1.25;background:rgba(255,196,0,0.10);border:1px solid rgba(255,196,0,0.15);padding:10px;border-radius:12px}
 </style>
 </head>
 
@@ -131,463 +74,125 @@
 <div id="wrap"><div id="chat"></div></div>
 <div id="pill">starting…</div>
 
-<button id="menuToggle" title="Settings">⚙️</button>
-
-<div id="menu">
-  <div class="mTitle">
-    <div>Chatbox Settings</div>
-    <div id="status" style="font-size:12px;opacity:.85;">idle</div>
-  </div>
-
-  <div class="warn">
-    Your IDs are prefilled. After you send a message as <b>freddogg23</b>, the pill will show <b>paintSelf=1</b> if your paint applied.
-  </div>
-
-  <div class="mRow full">
-    <div><label>Channel (no @)</label><input id="channel" /></div>
-  </div>
-
-  <div class="mRow">
-    <div>
-      <label>My Twitch ID (numeric)</label>
-      <input id="myTwitchId" />
-    </div>
-    <div>
-      <label>My 7TV User ID (object_id)</label>
-      <input id="my7tvUserId" />
-    </div>
-  </div>
-
-  <div class="mRow">
-    <div><label>Message text color</label><input id="textColor" type="color" /></div>
-    <div><label>Background opacity</label><input id="bgOpacity" type="number" min="0" max="1" step="0.05" /></div>
-  </div>
-
-  <div class="mRow">
-    <div><label>Font size (px)</label><input id="fontSize" type="number" min="10" max="90" step="1" /></div>
-    <div><label>Emote size (px)</label><input id="emoteSize" type="number" min="12" max="96" step="1" /></div>
-  </div>
-
-  <div class="mRow">
-    <div><label>Max messages</label><input id="maxMessages" type="number" min="1" max="50" step="1" /></div>
-    <div><label>Message lifetime (ms)</label><input id="ttlMs" type="number" min="2000" max="600000" step="500" /></div>
-  </div>
-
-  <div class="mRow">
-    <div><label>Show badges</label>
-      <select id="showBadges"><option value="1">Yes</option><option value="0">No</option></select>
-    </div>
-    <div><label>Badge mode</label>
-      <select id="badgeMode">
-        <option value="twitch">Twitch images (needs creds)</option>
-        <option value="text">Text (BC/MOD/VIP/SUB)</option>
-      </select>
-    </div>
-  </div>
-
-  <div class="mRow">
-    <div><label>Enable 7TV emotes</label>
-      <select id="enable7tv"><option value="1">Yes</option><option value="0">No</option></select>
-    </div>
-    <div><label>7TV set</label>
-      <select id="sevenTvMode">
-        <option value="both">Both</option>
-        <option value="global">Global</option>
-        <option value="channel">Channel</option>
-      </select>
-    </div>
-  </div>
-
-  <div class="mRow">
-    <div><label>Enable 7TV paints</label>
-      <select id="enablePaints"><option value="1">Yes</option><option value="0">No</option></select>
-    </div>
-    <div><label>Paint priority</label>
-      <select id="paintPriority">
-        <option value="paintFirst">Paint overrides all</option>
-        <option value="twitchFirst">Use Twitch/special unless no color</option>
-      </select>
-    </div>
-  </div>
-
-  <div class="mRow full">
-    <div>
-      <label>Special name colors JSON (optional)</label>
-      <textarea id="specialColors" placeholder='{"someuser":"#ff00ff"}'></textarea>
-    </div>
-  </div>
-
-  <div class="divider"></div>
-
-  <div class="mRow">
-    <div>
-      <label>Twitch Client ID</label>
-      <input id="twitchClientId" placeholder="paste client id" />
-    </div>
-    <div>
-      <label>Twitch App Access Token</label>
-      <input id="twitchToken" placeholder="paste access token" />
-    </div>
-  </div>
-
-  <div class="btnRow">
-    <button class="btn" id="saveCreds">Save creds</button>
-    <button class="btn" id="apply">Apply</button>
-  </div>
-
-  <div class="btnRow">
-    <button class="btn" id="copy">Copy URL</button>
-    <button class="btn" id="reset">Reset</button>
-  </div>
-</div>
-
 <script>
-/* ===== error-to-pill ===== */
-(function(){
-  function showErr(msg){
-    const t = "ERR: " + (msg || "unknown");
-    const pill = document.getElementById("pill");
-    const status = document.getElementById("status");
-    if (pill) pill.textContent = t;
-    if (status) status.textContent = t;
-    console.error(t);
+const chatEl = document.getElementById("chat");
+const pill = document.getElementById("pill");
+
+function setPill(t){ pill.textContent = t; }
+
+function esc(s){
+  return (s ?? "").toString()
+    .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;").replaceAll("'","&#039;");
+}
+
+// ===== 7TV v3 paint extraction =====
+
+// Find a paint object somewhere in a v3 user payload
+function findPaint(obj){
+  if (!obj || typeof obj !== "object") return null;
+
+  // likely paths
+  const candidates = [
+    obj?.style?.paint,
+    obj?.style?.paints?.[0],
+    obj?.style?.cosmetics?.paint,
+    obj?.cosmetics?.paint,
+    obj?.paint,
+    obj?.data?.style?.paint,
+    obj?.data?.paint
+  ];
+
+  for (const c of candidates){
+    if (c && typeof c === "object") return c;
   }
-  window.addEventListener("error", (e)=> showErr(e?.message));
-  window.addEventListener("unhandledrejection", (e)=> showErr(e?.reason?.message || String(e?.reason)));
-})();
 
-const $ = (id)=>document.getElementById(id);
-const chatEl = $("chat");
-const pill = $("pill");
-const statusEl = $("status");
-
-const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
-const esc=(s)=>(s??"").toString()
-  .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
-  .replaceAll('"',"&quot;").replaceAll("'","&#039;");
-
-function setStatus(t){
-  statusEl.textContent = t;
-  pill.textContent = t;
-}
-
-/* ===== config via hash ===== */
-const DEFAULTS = {
-  channel: "freddogg23",
-  myTwitchId: "68238870",
-  my7tv: "01G4HWTTYG000D3DGNAYJJPAB4",
-  text: "ffffff",
-  bg: 0.35,
-  size: 24,
-  emote: 34,
-  ttl: 16000,
-  max: 10,
-  badges: "1",
-  badgeMode: "twitch",
-  seven: "1",
-  sevenMode: "both",
-  paints: "1",
-  paintPriority: "paintFirst",
-  special: ""
-};
-
-function parseHash(){
-  const h = (location.hash || "").replace(/^#/, "");
-  const out = {};
-  if (!h) return out;
-  for (const part of h.split("&")){
-    const [k,v] = part.split("=");
-    if (!k) continue;
-    out[decodeURIComponent(k)] = decodeURIComponent(v ?? "");
-  }
-  return out;
-}
-
-function getConfig(){
-  const h = parseHash();
-  const cfg = {...DEFAULTS, ...h};
-
-  cfg.channel = (cfg.channel || "freddogg23").replace(/^@/,"").toLowerCase();
-  cfg.myTwitchId = String(cfg.myTwitchId || "68238870").trim();
-  cfg.my7tv = String(cfg.my7tv || "01G4HWTTYG000D3DGNAYJJPAB4").trim();
-
-  const hex = (cfg.text || "ffffff").replace("#","").trim();
-  cfg.text = /^[0-9a-f]{6}$/i.test(hex) ? hex.toLowerCase() : "ffffff";
-
-  cfg.bg = clamp(parseFloat(cfg.bg ?? 0.35), 0, 1);
-  cfg.size = clamp(parseInt(cfg.size ?? 24,10) || 24, 10, 90);
-  cfg.emote = clamp(parseInt(cfg.emote ?? 34,10) || 34, 12, 96);
-  cfg.ttl = clamp(parseInt(cfg.ttl ?? 16000,10) || 16000, 2000, 600000);
-  cfg.max = clamp(parseInt(cfg.max ?? 10,10) || 10, 1, 50);
-
-  cfg.badges = (cfg.badges === "0" ? "0" : "1");
-  cfg.badgeMode = (cfg.badgeMode === "text" ? "text" : "twitch");
-
-  cfg.seven = (cfg.seven === "0" ? "0" : "1");
-  cfg.sevenMode = (cfg.sevenMode === "global" || cfg.sevenMode === "channel") ? cfg.sevenMode : "both";
-
-  cfg.paints = (cfg.paints === "0" ? "0" : "1");
-  cfg.paintPriority = (cfg.paintPriority === "twitchFirst") ? "twitchFirst" : "paintFirst";
-
-  cfg.special = cfg.special || "";
-  return cfg;
-}
-
-function writeHash(cfg){
-  const parts = [];
-  const put = (k,v)=> parts.push(encodeURIComponent(k) + "=" + encodeURIComponent(String(v)));
-  put("channel", cfg.channel);
-  put("myTwitchId", cfg.myTwitchId);
-  put("my7tv", cfg.my7tv);
-  put("text", cfg.text);
-  put("bg", cfg.bg);
-  put("size", cfg.size);
-  put("emote", cfg.emote);
-  put("max", cfg.max);
-  put("ttl", cfg.ttl);
-  put("badges", cfg.badges);
-  put("badgeMode", cfg.badgeMode);
-  put("seven", cfg.seven);
-  put("sevenMode", cfg.sevenMode);
-  put("paints", cfg.paints);
-  put("paintPriority", cfg.paintPriority);
-  if ((cfg.special || "").trim()) put("special", cfg.special.trim());
-  location.hash = parts.join("&");
-}
-
-function applyCss(cfg){
-  document.documentElement.style.setProperty("--msg-bg", `rgba(0,0,0,${cfg.bg})`);
-  document.documentElement.style.setProperty("--font-size", `${cfg.size}px`);
-  document.documentElement.style.setProperty("--emote-size", `${cfg.emote}px`);
-}
-
-function fillMenu(cfg){
-  $("channel").value = cfg.channel;
-  $("myTwitchId").value = cfg.myTwitchId;
-  $("my7tvUserId").value = cfg.my7tv;
-  $("textColor").value = "#" + cfg.text;
-  $("bgOpacity").value = cfg.bg;
-  $("fontSize").value = cfg.size;
-  $("emoteSize").value = cfg.emote;
-  $("maxMessages").value = cfg.max;
-  $("ttlMs").value = cfg.ttl;
-  $("showBadges").value = cfg.badges;
-  $("badgeMode").value = cfg.badgeMode;
-  $("enable7tv").value = cfg.seven;
-  $("sevenTvMode").value = cfg.sevenMode;
-  $("enablePaints").value = cfg.paints;
-  $("paintPriority").value = cfg.paintPriority;
-  $("specialColors").value = cfg.special || "";
-}
-
-function readMenu(){
-  const hex = ($("textColor").value || "#ffffff").replace("#","");
-  const specialRaw = ($("specialColors").value || "").trim();
-  return {
-    channel: ($("channel").value || "freddogg23").trim().replace(/^@/,"").toLowerCase(),
-    myTwitchId: ($("myTwitchId").value || "68238870").trim(),
-    my7tv: ($("my7tvUserId").value || "01G4HWTTYG000D3DGNAYJJPAB4").trim(),
-    text: /^[0-9a-f]{6}$/i.test(hex) ? hex.toLowerCase() : "ffffff",
-    bg: clamp(parseFloat($("bgOpacity").value ?? "0.35"), 0, 1),
-    size: clamp(parseInt($("fontSize").value ?? "24",10) || 24, 10, 90),
-    emote: clamp(parseInt($("emoteSize").value ?? "34",10) || 34, 12, 96),
-    max: clamp(parseInt($("maxMessages").value ?? "10",10) || 10, 1, 50),
-    ttl: clamp(parseInt($("ttlMs").value ?? "16000",10) || 16000, 2000, 600000),
-    badges: $("showBadges").value === "0" ? "0" : "1",
-    badgeMode: $("badgeMode").value === "text" ? "text" : "twitch",
-    seven: $("enable7tv").value === "0" ? "0" : "1",
-    sevenMode: $("sevenTvMode").value,
-    paints: $("enablePaints").value === "0" ? "0" : "1",
-    paintPriority: $("paintPriority").value,
-    special: specialRaw
-  };
-}
-
-async function copyUrl(){
-  const url = location.origin + location.pathname + location.search + location.hash;
-  try{ await navigator.clipboard.writeText(url); setStatus("copied URL ✅"); }
-  catch(e){ prompt("Copy this URL:", url); }
-}
-
-/* ===== creds in sessionStorage ===== */
-const CREDS_KEY="twitch_creds_session_v1";
-function getCreds(){ try{ return JSON.parse(sessionStorage.getItem(CREDS_KEY)||"null"); }catch{ return null; } }
-function setCreds(clientId, token){ sessionStorage.setItem(CREDS_KEY, JSON.stringify({clientId, token})); }
-function credsPresent(){ const c=getCreds(); return !!(c?.clientId && c?.token); }
-
-/* ===== robust paint fetch ===== */
-const paintCache = new Map();
-let paintHits = 0;
-let paintSelf = 0;
-let paintDebug = "init";
-
-function int32ToHexRGBA(n){
-  let u = Number(n);
-  if (!Number.isFinite(u)) return null;
-  u = u >>> 0;
-  const a = (u >>> 24) & 0xff;
-  const r = (u >>> 16) & 0xff;
-  const g = (u >>> 8) & 0xff;
-  const b = (u >>> 0) & 0xff;
-  const alpha = a === 0 ? 0xff : a;
-  const to2 = (x) => x.toString(16).padStart(2, "0");
-  if (alpha !== 0xff) return `#${to2(r)}${to2(g)}${to2(b)}${to2(alpha)}`;
-  return `#${to2(r)}${to2(g)}${to2(b)}`;
-}
-
-function buildPaintCss(paint){
-  if (!paint) return null;
-  const angle = Number.isFinite(paint.angle) ? paint.angle : 90;
-  const repeat = !!paint.repeat;
-  const stops = Array.isArray(paint.stops) ? paint.stops : [];
-  if (stops.length >= 2){
-    const parts = stops.map(s=>{
-      const c = int32ToHexRGBA(s.color);
-      const at = Number.isFinite(s.at) ? Math.round(s.at*100) : null;
-      if (!c) return null;
-      return at == null ? `${c}` : `${c} ${at}%`;
-    }).filter(Boolean);
-    if (parts.length >= 2){
-      const gradFn = repeat ? "repeating-linear-gradient" : "linear-gradient";
-      return `background-image:${gradFn}(${angle}deg, ${parts.join(", ")});`;
-    }
-  }
-  const base = int32ToHexRGBA(paint.color);
-  if (base) return `background-image:none; color:${base};`;
   return null;
 }
 
-function pickPaint(data){
-  if (!data) return null;
-  const paints = Array.isArray(data.paints) ? data.paints : [];
-  return paints.find(p => p && (Array.isArray(p.stops) || Number.isFinite(p.color))) || null;
+function buildCssFromV3Paint(paint){
+  if (!paint) return null;
+
+  // Sometimes paint has direct CSS or "css" string
+  if (typeof paint.css === "string" && paint.css.trim()){
+    // If it's missing background-clip we still use paintText class for it.
+    return paint.css.trim().endsWith(";") ? paint.css.trim() : (paint.css.trim() + ";");
+  }
+
+  // Sometimes it's a gradient definition with stops
+  const stops = paint.stops || paint.gradient?.stops || paint.data?.stops;
+  const angle = paint.angle ?? paint.gradient?.angle ?? 90;
+  const repeat = !!(paint.repeat ?? paint.gradient?.repeat);
+
+  if (Array.isArray(stops) && stops.length >= 2){
+    const parts = stops.map(s=>{
+      const c = s.color || s.colour || s.hex || null;
+      const at = (s.at ?? s.position ?? null);
+      if (!c) return null;
+      return at == null ? `${c}` : `${c} ${Math.round(at*100)}%`;
+    }).filter(Boolean);
+
+    if (parts.length >= 2){
+      const fn = repeat ? "repeating-linear-gradient" : "linear-gradient";
+      return `background-image:${fn}(${angle}deg, ${parts.join(", ")});`;
+    }
+  }
+
+  // Some paints are image/url based
+  const url = paint.url || paint.image_url || paint.image || paint.data?.url || null;
+  if (url){
+    const safe = url.startsWith("http") ? url : ("https:" + url);
+    return `background-image:url("${safe}"); background-size:cover; background-repeat:no-repeat;`;
+  }
+
+  // Some paints are a single solid color
+  const color = paint.color || paint.colour;
+  if (color) return `background-image:none; color:${color};`;
+
+  return null;
 }
 
-async function tryFetchJson(url){
-  const r = await fetch(url, { cache:"no-store" });
+async function fetch7tvV3UserByTwitchId(twitchId){
+  const r = await fetch(`https://7tv.io/v3/users/twitch/${encodeURIComponent(twitchId)}`, { cache:"no-store" });
   if (!r.ok) return null;
   return await r.json();
 }
 
-async function get7tvV2UserByLogin(login){
-  const j = await tryFetchJson(`https://api.7tv.app/v2/users/${encodeURIComponent(login)}`);
-  return j && j.id ? j : null;
-}
+// ===== Demo test for your user =====
+async function testPaintSelf(){
+  const twitchId = "68238870";
+  setPill("loading 7TV v3 user…");
 
-async function fetchCosmeticsAny(userIdentifier, id){
-  // try query and path variants
-  const urls = [
-    `https://api.7tv.app/v2/cosmetics?user_identifier=${encodeURIComponent(userIdentifier)}&id=${encodeURIComponent(id)}`,
-    `https://api.7tv.app/v2/cosmetics/${encodeURIComponent(userIdentifier)}/${encodeURIComponent(id)}`
-  ];
-  for (const u of urls){
-    const j = await tryFetchJson(u);
-    if (j) return { data:j, url:u };
-  }
-  return { data:null, url:null };
-}
-
-async function getSelfPaintCss(cfg){
-  const key = "self";
-  if (paintCache.has(key)) return paintCache.get(key);
-
-  // Try twitch id
-  let res = await fetchCosmeticsAny("twitch_id", cfg.myTwitchId);
-  if (res.data){
-    const css = buildPaintCss(pickPaint(res.data));
-    if (css){
-      paintDebug = "twitch_id:" + res.url;
-      paintCache.set(key, css);
-      return css;
-    }
+  const user = await fetch7tvV3UserByTwitchId(twitchId);
+  if (!user){
+    setPill("paintSelf=0 (v3 user fetch failed)");
+    return;
   }
 
-  // Try object_id with your known 7TV id
-  res = await fetchCosmeticsAny("object_id", cfg.my7tv);
-  if (res.data){
-    const css = buildPaintCss(pickPaint(res.data));
-    if (css){
-      paintDebug = "object_id:" + res.url;
-      paintCache.set(key, css);
-      return css;
-    }
-  }
+  const paint = findPaint(user);
+  const css = buildCssFromV3Paint(paint);
 
-  // Resolve v2 user by login and retry object_id
-  const u = await get7tvV2UserByLogin(cfg.channel);
-  if (u?.id){
-    res = await fetchCosmeticsAny("object_id", u.id);
-    if (res.data){
-      const css = buildPaintCss(pickPaint(res.data));
-      if (css){
-        paintDebug = "v2user_object_id:" + res.url;
-        paintCache.set(key, css);
-        return css;
-      }
-    }
-  }
-
-  paintDebug = "none";
-  paintCache.set(key, null);
-  return null;
-}
-
-/* ===== minimal render to show paint working (without breaking your overlay) ===== */
-function addTestLine(name, css){
   const msg=document.createElement("div");
   msg.className="msg show";
-  msg.innerHTML=`<div class="left"><div class="topline"></div><div class="text">Paint test line</div></div>`;
-  const nameEl=document.createElement("div");
-  nameEl.className="name";
-  nameEl.textContent=name;
+  msg.innerHTML = `<div class="left"><div class="topline"></div><div class="text">Paint test line (should paint your name)</div></div>`;
+
+  const name=document.createElement("div");
+  name.className="name";
+  name.textContent="freddogg23";
+
   if (css){
-    nameEl.classList.add("paintText");
-    nameEl.style.cssText += css;
+    name.classList.add("paintText");
+    name.style.cssText += css;
+    setPill("paintSelf=1 (v3)");
+  } else {
+    setPill("paintSelf=0 (v3: no paint data found)");
   }
-  msg.querySelector(".topline").appendChild(nameEl);
+
+  msg.querySelector(".topline").appendChild(name);
   chatEl.appendChild(msg);
 }
 
-/* ===== UI ===== */
-$("menuToggle").addEventListener("click", ()=> $("menu").classList.toggle("open"));
-
-$("saveCreds").addEventListener("click", ()=>{
-  const clientId=$("twitchClientId").value.trim();
-  const token=$("twitchToken").value.trim();
-  if(!clientId || !token){ setStatus("missing Client ID or Token"); return; }
-  setCreds(clientId, token);
-  setStatus("creds saved (session) ✅");
-});
-
-$("apply").addEventListener("click", async ()=>{
-  const cfg=readMenu();
-  writeHash(cfg);
-  applyCss(cfg);
-  chatEl.innerHTML = "";
-
-  const css = await getSelfPaintCss(cfg);
-  paintSelf = css ? 1 : 0;
-  if (paintSelf) paintHits++;
-
-  addTestLine(cfg.channel, css);
-  setStatus(`paintSelf=${paintSelf} paintHits=${paintHits} paintDebug=${paintDebug}`);
-});
-
-$("reset").addEventListener("click", ()=>{
-  location.hash = "";
-  const cfg = getConfig();
-  fillMenu(cfg);
-});
-
-$("copy").addEventListener("click", copyUrl);
-
-/* ===== boot ===== */
-(function boot(){
-  const cfg=getConfig();
-  fillMenu(cfg);
-  applyCss(cfg);
-  setStatus("ready • click Apply to test paint");
-})();
+testPaintSelf();
 </script>
 </body>
 </html>
