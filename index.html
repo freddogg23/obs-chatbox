@@ -3,340 +3,55 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>OBS Twitch Chatbox</title>
+<title>OBS Chatbox Diagnostic</title>
 <style>
-  :root{
-    --font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-    --font-size: 24px;
-    --line-height: 1.25;
-    --msg-gap: 10px;
-    --msg-bg: rgba(0,0,0,0.35);
-    --msg-radius: 14px;
-    --msg-pad-y: 10px;
-    --msg-pad-x: 14px;
-    --shadow: 0 6px 22px rgba(0,0,0,0.35);
-    --text-shadow: 0 2px 8px rgba(0,0,0,0.6);
-    --name-weight: 800;
-    --msg-weight: 600;
-    --emote-size: 34px;
-    --fade-ms: 220;
-  }
-  html,body{margin:0;height:100%;background:transparent;overflow:hidden;font-family:var(--font-family)}
-  #wrap{position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:flex-start;padding:12px;box-sizing:border-box}
-  #chat{width:100%;display:flex;flex-direction:column;gap:var(--msg-gap);pointer-events:none}
-  .msg{display:flex;gap:10px;background:var(--msg-bg);border-radius:var(--msg-radius);
-    padding:calc(var(--msg-pad-y)*1px) calc(var(--msg-pad-x)*1px);box-shadow:var(--shadow);
-    backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
-    opacity:0;transform:translateY(10px);
-    transition:opacity var(--fade-ms)ms ease,transform var(--fade-ms)ms ease;}
-  .msg.show{opacity:1;transform:translateY(0)}
-  .left{display:flex;flex-direction:column;gap:6px;min-width:0;width:100%}
-  .topline{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-  .name{font-size:var(--font-size);line-height:var(--line-height);font-weight:var(--name-weight);
-    text-shadow:var(--text-shadow);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%}
-  .text{font-size:var(--font-size);line-height:var(--line-height);font-weight:var(--msg-weight);
-    text-shadow:var(--text-shadow);word-break:break-word;overflow-wrap:anywhere;min-width:0}
-  img.emote{width:var(--emote-size);height:var(--emote-size);vertical-align:-8px;margin:0 2px}
-
-  #statusPill{position:absolute;left:10px;top:10px;z-index:40;font-size:12px;padding:8px 10px;border-radius:999px;
-    background:rgba(0,0,0,0.45);color:rgba(255,255,255,0.95);box-shadow:0 10px 28px rgba(0,0,0,0.35);
-    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);pointer-events:none;
-    max-width:calc(100% - 20px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-
-  #menuToggle{position:absolute;top:10px;right:10px;z-index:50;width:44px;height:44px;border-radius:14px;border:0;
-    background:rgba(0,0,0,0.45);color:#fff;cursor:pointer;box-shadow:0 10px 28px rgba(0,0,0,0.45);
-    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
-  #menu{position:absolute;top:64px;right:10px;z-index:50;width:360px;max-height:calc(100% - 80px);overflow:auto;
-    border-radius:18px;background:rgba(12,12,12,0.72);color:rgba(255,255,255,0.95);box-shadow:0 18px 50px rgba(0,0,0,0.55);
-    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);padding:14px;display:none;pointer-events:auto}
-  #menu.open{display:block}
-  .mTitle{font-weight:800;display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
-  .mRow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
-  .mRow.full{grid-template-columns:1fr}
-  label{font-size:12px;opacity:.9;display:block;margin-bottom:6px}
-  input,select,textarea{width:100%;box-sizing:border-box;border-radius:12px;border:1px solid rgba(255,255,255,0.12);
-    background:rgba(255,255,255,0.06);color:#fff;padding:10px;outline:none}
-  input[type="color"]{padding:0;height:42px}
-  textarea{min-height:90px;resize:vertical;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.3}
-  .btnRow{display:flex;gap:10px;margin-top:10px}
-  .btn{flex:1;cursor:pointer;border:0;border-radius:14px;padding:10px 12px;font-weight:800;color:#fff;background:rgba(255,255,255,0.12)}
-  body.hideMenu #menuToggle, body.hideMenu #menu{display:none!important}
+  html,body{margin:0;height:100%;background:transparent;overflow:hidden;font-family:system-ui,Segoe UI,Arial}
+  #pill{position:absolute;left:10px;top:10px;padding:10px 12px;border-radius:999px;
+    background:rgba(0,0,0,.55);color:#fff;font-size:12px;max-width:calc(100% - 20px);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 </style>
 </head>
 <body>
-  <div id="wrap"><div id="chat"></div></div>
-  <div id="statusPill">idle</div>
-  <button id="menuToggle">⚙️</button>
-
-  <div id="menu">
-    <div class="mTitle"><div>Chatbox</div><div id="status" style="font-size:12px;opacity:.85;">idle</div></div>
-
-    <div class="mRow full">
-      <div><label>Channel</label><input id="channel" placeholder="freddogg23"></div>
-    </div>
-
-    <div class="mRow">
-      <div><label>Font family</label><input id="fontFamily"></div>
-      <div><label>Font size</label><input id="fontSize" type="number" min="10" max="90"></div>
-    </div>
-
-    <div class="mRow">
-      <div><label>Message text color</label><input id="textColor" type="color"></div>
-      <div><label>Background opacity</label><input id="bgOpacity" type="number" min="0" max="1" step="0.05"></div>
-    </div>
-
-    <div class="mRow">
-      <div><label>TTL (ms)</label><input id="ttlMs" type="number" min="2000" max="600000" step="500"></div>
-      <div><label>Max messages</label><input id="maxMessages" type="number" min="1" max="50"></div>
-    </div>
-
-    <div class="mRow full">
-      <div>
-        <label>Special name colors JSON</label>
-        <textarea id="specialColors"></textarea>
-      </div>
-    </div>
-
-    <div class="btnRow">
-      <button class="btn" id="apply">Apply</button>
-      <button class="btn" id="reset">Reset</button>
-    </div>
-
-    <div style="font-size:12px;opacity:.82;line-height:1.25;margin-top:8px;">
-      URL params override: channel, text, bg, ttl, max, font, size, menu=0, clear=1
-    </div>
-  </div>
-
+  <div id="pill">starting…</div>
 <script>
-  const qs = new URLSearchParams(location.search);
-  const $ = (id)=>document.getElementById(id);
-  const chatEl = $("chat");
-  const statusEl = $("status");
-  const pill = $("statusPill");
+  const pill = document.getElementById("pill");
+  const channel = new URLSearchParams(location.search).get("channel") || "freddogg23";
+  const url = "wss://irc-ws.chat.twitch.tv:443";
 
-  const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
-  const escapeHtml=(s)=>(s??"").toString()
-    .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;").replaceAll("'","&#039;");
+  function set(t){ pill.textContent = t; console.log(t); }
 
-  function setStatus(t){ statusEl.textContent=t; pill.textContent=t; }
+  let ws;
+  function start(){
+    try{ ws?.close(); }catch(e){}
+    set(`connecting… ${url} (#${channel})`);
+    ws = new WebSocket(url);
 
-  const DEFAULTS = {
-    channel:"freddogg23",
-    fontFamily:"system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif",
-    fontSize:24,
-    textColor:"#ffffff",
-    bgOpacity:0.35,
-    ttlMs:16000,
-    maxMessages:10,
-    specialColors: JSON.stringify({}, null, 2)
-  };
-
-  const STORAGE_KEY = "obsChatboxHosted_v1";
-
-  function loadSettings(){
-    if (qs.get("menu")==="0") document.body.classList.add("hideMenu");
-    if (qs.get("clear")==="1") localStorage.removeItem(STORAGE_KEY);
-
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
-    const s = { ...DEFAULTS, ...saved };
-
-    // URL overrides (so you can force config from OBS URL)
-    if (qs.get("channel")) s.channel = qs.get("channel");
-    if (qs.get("font")) s.fontFamily = qs.get("font");
-    if (qs.get("size")) s.fontSize = +qs.get("size");
-    if (qs.get("text")) s.textColor = qs.get("text").startsWith("#") ? qs.get("text") : ("#" + qs.get("text"));
-    if (qs.get("bg")) s.bgOpacity = +qs.get("bg");
-    if (qs.get("ttl")) s.ttlMs = +qs.get("ttl");
-    if (qs.get("max")) s.maxMessages = +qs.get("max");
-
-    return s;
-  }
-
-  function saveSettings(s){ localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }
-
-  function applyCss(s){
-    document.documentElement.style.setProperty("--font-family", s.fontFamily);
-    document.documentElement.style.setProperty("--font-size", `${clamp(+s.fontSize,10,90)}px`);
-    document.documentElement.style.setProperty("--msg-bg", `rgba(0,0,0,${clamp(+s.bgOpacity,0,1)})`);
-  }
-
-  function fillMenu(s){
-    $("channel").value=s.channel;
-    $("fontFamily").value=s.fontFamily;
-    $("fontSize").value=s.fontSize;
-    $("textColor").value=s.textColor;
-    $("bgOpacity").value=s.bgOpacity;
-    $("ttlMs").value=s.ttlMs;
-    $("maxMessages").value=s.maxMessages;
-    $("specialColors").value=s.specialColors;
-  }
-
-  function readMenu(){
-    return {
-      channel: $("channel").value.trim().replace(/^@/,"") || DEFAULTS.channel,
-      fontFamily: $("fontFamily").value.trim() || DEFAULTS.fontFamily,
-      fontSize: +$("fontSize").value || DEFAULTS.fontSize,
-      textColor: $("textColor").value || DEFAULTS.textColor,
-      bgOpacity: +$("bgOpacity").value ?? DEFAULTS.bgOpacity,
-      ttlMs: +$("ttlMs").value || DEFAULTS.ttlMs,
-      maxMessages: +$("maxMessages").value || DEFAULTS.maxMessages,
-      specialColors: $("specialColors").value
-    };
-  }
-
-  function parseBadges(badgesStr){
-    const out = {};
-    if (!badgesStr) return out;
-    for (const p of badgesStr.split(",")){
-      const [k,v] = p.split("/");
-      if (k) out[k]=v||"1";
-    }
-    return out;
-  }
-  function decodeTag(v){
-    return (v||"")
-      .replaceAll("\\:", ";").replaceAll("\\s", " ")
-      .replaceAll("\\\\", "\\").replaceAll("\\r", "\r").replaceAll("\\n", "\n");
-  }
-  function parseTags(tagPart){
-    const tags = {};
-    if (!tagPart) return tags;
-    for (const pair of tagPart.split(";")){
-      const i = pair.indexOf("=");
-      if (i===-1) continue;
-      tags[pair.slice(0,i)] = decodeTag(pair.slice(i+1));
-    }
-    return tags;
-  }
-  function parsePrivmsg(line){
-    let tags = {};
-    let rest = line;
-    if (rest.startsWith("@")){
-      const sp = rest.indexOf(" ");
-      tags = parseTags(rest.slice(1, sp));
-      rest = rest.slice(sp+1);
-    }
-    const m = rest.match(/^:([^ ]+)\s+PRIVMSG\s+#[^ ]+\s+:(.*)$/);
-    if (!m) return null;
-    const user = (m[1].split("!")[0]) || tags.login || "unknown";
-    return { tags, username:user, message:m[2] ?? "" };
-  }
-
-  function nameColor(username, tags, s){
-    let map = {};
-    try{ map = JSON.parse(s.specialColors || "{}") || {}; }catch(e){}
-    const u = (username||"").toLowerCase();
-    if (map[u]) return map[u];
-    const c = tags?.color;
-    if (c && /^#([0-9a-f]{6})$/i.test(c)) return c;
-    return "#a7ffef";
-  }
-
-  function restyleAll(s){
-    document.querySelectorAll(".text").forEach(el => el.style.color = s.textColor);
-  }
-
-  function addMessage({ username, displayName, tags, text, s }){
-    while (chatEl.children.length >= clamp(+s.maxMessages,1,50)){
-      chatEl.removeChild(chatEl.firstChild);
-    }
-    const msg = document.createElement("div");
-    msg.className = "msg";
-
-    msg.innerHTML = `
-      <div class="left">
-        <div class="topline">
-          <div class="name" style="color:${nameColor(username, tags, s)}">${escapeHtml(displayName||username)}</div>
-        </div>
-        <div class="text" style="color:${s.textColor}">${escapeHtml(text)}</div>
-      </div>
-    `;
-
-    chatEl.appendChild(msg);
-    requestAnimationFrame(()=>msg.classList.add("show"));
-
-    const ttl = clamp(+s.ttlMs, 2000, 600000);
-    setTimeout(()=>{
-      msg.classList.remove("show");
-      setTimeout(()=>{ if (msg.parentNode) msg.parentNode.removeChild(msg); }, 260);
-    }, ttl);
-  }
-
-  // Menu
-  $("menuToggle").addEventListener("click", ()=> $("menu").classList.toggle("open"));
-
-  // Twitch WS
-  let ws=null;
-  function stop(){ try{ ws?.close(); }catch(e){} ws=null; }
-  function start(s){
-    stop();
-    const login = (s.channel||"").trim().replace(/^@/,"");
-    if (!login){ setStatus("error: no channel"); return; }
-
-    setStatus(`connecting… (#${login})`);
-    ws = new WebSocket("wss://irc-ws.chat.twitch.tv:443");
-
-    ws.onopen = ()=>{
+    ws.onopen = () => {
+      set(`open ✅ joining #${channel}`);
       ws.send("CAP REQ :twitch.tv/tags twitch.tv/commands twitch.tv/membership");
-      const rand = Math.floor(1000 + Math.random()*9000);
       ws.send("PASS SCHMOOPIIE");
-      ws.send(`NICK justinfan${rand}`);
-      ws.send(`JOIN #${login}`);
+      ws.send("NICK justinfan12345");
+      ws.send(`JOIN #${channel}`);
     };
 
-    ws.onmessage = (ev)=>{
-      const lines = (ev.data||"").split("\r\n").filter(Boolean);
-      for (const line of lines){
-        if (line.startsWith("PING")){ ws.send("PONG :tmi.twitch.tv"); continue; }
-        if (line.includes(" JOIN #")){
-          setStatus(`online (#${login}) • text=${s.textColor}`);
-          continue;
-        }
-        if (line.includes(" PRIVMSG ")){
-          const p = parsePrivmsg(line);
-          if (!p) continue;
-          addMessage({
-            username: p.username,
-            displayName: p.tags["display-name"] || p.username,
-            tags: { color: p.tags.color || null, badges: parseBadges(p.tags.badges||"") },
-            text: p.message,
-            s
-          });
-        }
-      }
+    ws.onmessage = (ev) => {
+      const raw = ev.data || "";
+      if (raw.startsWith("PING")) ws.send("PONG :tmi.twitch.tv");
+      if (raw.includes(" JOIN #")) set(`online ✅ joined #${channel}`);
     };
 
-    ws.onerror = ()=> setStatus("error: websocket failed");
-    ws.onclose = ()=> setTimeout(()=>start(s), 2000);
+    ws.onerror = (e) => {
+      // Browser doesn't give much detail here, but keep it visible
+      set(`error ❌ websocket error event`);
+    };
+
+    ws.onclose = (e) => {
+      set(`closed ❌ code=${e.code} reason="${e.reason || ""}" wasClean=${e.wasClean}`);
+      // 1006 is the big one: blocked/aborted
+      setTimeout(start, 2500);
+    };
   }
-
-  // Boot
-  let S = loadSettings();
-  applyCss(S);
-  fillMenu(S);
-
-  addMessage({ username:"chatbox", displayName:"Chatbox", tags:{}, text:"Hosted version ready. Set text color + Apply.", s:S });
-  restyleAll(S);
-  start(S);
-
-  $("apply").addEventListener("click", ()=>{
-    S = readMenu();
-    saveSettings(S);
-    applyCss(S);
-    restyleAll(S);
-    setStatus(`online • text=${S.textColor} (applied)`);
-    start(S);
-  });
-
-  $("reset").addEventListener("click", ()=>{
-    localStorage.removeItem(STORAGE_KEY);
-    S = loadSettings();
-    applyCss(S);
-    fillMenu(S);
-    restyleAll(S);
-    start(S);
-  });
+  start();
 </script>
 </body>
 </html>
