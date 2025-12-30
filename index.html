@@ -3,55 +3,191 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>OBS Chatbox Diagnostic</title>
+<title>OBS Twitch Chatbox (URL Only)</title>
 <style>
-  html,body{margin:0;height:100%;background:transparent;overflow:hidden;font-family:system-ui,Segoe UI,Arial}
-  #pill{position:absolute;left:10px;top:10px;padding:10px 12px;border-radius:999px;
-    background:rgba(0,0,0,.55);color:#fff;font-size:12px;max-width:calc(100% - 20px);
-    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  :root{
+    --font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    --font-size: 24px;
+    --line-height: 1.25;
+    --msg-gap: 10px;
+    --msg-bg: rgba(0,0,0,0.35);
+    --msg-radius: 14px;
+    --msg-pad-y: 10px;
+    --msg-pad-x: 14px;
+    --shadow: 0 6px 22px rgba(0,0,0,0.35);
+    --text-shadow: 0 2px 8px rgba(0,0,0,0.6);
+    --name-weight: 800;
+    --msg-weight: 600;
+    --fade-ms: 220;
+  }
+  html,body{margin:0;height:100%;background:transparent;overflow:hidden;font-family:var(--font-family)}
+  #wrap{position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:flex-start;padding:12px;box-sizing:border-box}
+  #chat{width:100%;display:flex;flex-direction:column;gap:var(--msg-gap);pointer-events:none}
+  .msg{
+    display:flex;gap:10px;background:var(--msg-bg);border-radius:var(--msg-radius);
+    padding:calc(var(--msg-pad-y)*1px) calc(var(--msg-pad-x)*1px);
+    box-shadow:var(--shadow);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+    opacity:0;transform:translateY(10px);
+    transition:opacity var(--fade-ms)ms ease,transform var(--fade-ms)ms ease;
+  }
+  .msg.show{opacity:1;transform:translateY(0)}
+  .left{display:flex;flex-direction:column;gap:6px;min-width:0;width:100%}
+  .topline{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .name{
+    font-size:var(--font-size);line-height:var(--line-height);font-weight:var(--name-weight);
+    text-shadow:var(--text-shadow);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%
+  }
+  .text{
+    font-size:var(--font-size);line-height:var(--line-height);font-weight:var(--msg-weight);
+    text-shadow:var(--text-shadow);word-break:break-word;overflow-wrap:anywhere;min-width:0
+  }
+  #pill{
+    position:absolute;left:10px;top:10px;z-index:40;font-size:12px;padding:8px 10px;border-radius:999px;
+    background:rgba(0,0,0,0.45);color:rgba(255,255,255,0.95);
+    box-shadow:0 10px 28px rgba(0,0,0,0.35);
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    max-width:calc(100% - 20px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap
+  }
 </style>
 </head>
 <body>
+  <div id="wrap"><div id="chat"></div></div>
   <div id="pill">starting…</div>
+
 <script>
+  const qs = new URLSearchParams(location.search);
+  const chatEl = document.getElementById("chat");
   const pill = document.getElementById("pill");
-  const channel = new URLSearchParams(location.search).get("channel") || "freddogg23";
-  const url = "wss://irc-ws.chat.twitch.tv:443";
 
-  function set(t){ pill.textContent = t; console.log(t); }
+  const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+  const esc=(s)=>(s??"").toString()
+    .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;").replaceAll("'","&#039;");
 
+  // URL-only config
+  const channel = (qs.get("channel") || "freddogg23").trim().replace(/^@/,"").toLowerCase();
+  const textHexRaw = (qs.get("text") || "ffffff").replace("#","").trim();
+  const textColor = /^([0-9a-f]{6})$/i.test(textHexRaw) ? ("#" + textHexRaw) : "#ffffff";
+  const bg = clamp(parseFloat(qs.get("bg") ?? "0.35"), 0, 1);
+  const ttl = clamp(parseInt(qs.get("ttl") ?? "16000", 10) || 16000, 2000, 600000);
+  const max = clamp(parseInt(qs.get("max") ?? "10", 10) || 10, 1, 50);
+  const font = (qs.get("font") || "system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif").trim();
+  const size = clamp(parseInt(qs.get("size") ?? "24", 10) || 24, 10, 90);
+
+  document.documentElement.style.setProperty("--msg-bg", `rgba(0,0,0,${bg})`);
+  document.documentElement.style.setProperty("--font-family", font);
+  document.documentElement.style.setProperty("--font-size", `${size}px`);
+
+  function setPill(t){ pill.textContent = t; console.log(t); }
+
+  function addMessage({username, displayName, message, nameColor}){
+    while (chatEl.children.length >= max) chatEl.removeChild(chatEl.firstChild);
+
+    const msg = document.createElement("div");
+    msg.className = "msg";
+    msg.innerHTML = `
+      <div class="left">
+        <div class="topline">
+          <div class="name" style="color:${nameColor}">${esc(displayName||username)}</div>
+        </div>
+        <div class="text" style="color:${textColor}">${esc(message)}</div>
+      </div>
+    `;
+    chatEl.appendChild(msg);
+    requestAnimationFrame(()=>msg.classList.add("show"));
+
+    setTimeout(()=>{
+      msg.classList.remove("show");
+      setTimeout(()=>{ if (msg.parentNode) msg.parentNode.removeChild(msg); }, 260);
+    }, ttl);
+  }
+
+  // Parse IRC tags
+  function decodeTag(v){
+    return (v||"")
+      .replaceAll("\\:", ";").replaceAll("\\s", " ")
+      .replaceAll("\\\\", "\\").replaceAll("\\r", "\r").replaceAll("\\n", "\n");
+  }
+  function parseTags(tagPart){
+    const tags = {};
+    if (!tagPart) return tags;
+    for (const pair of tagPart.split(";")){
+      const i = pair.indexOf("=");
+      if (i === -1) continue;
+      tags[pair.slice(0,i)] = decodeTag(pair.slice(i+1));
+    }
+    return tags;
+  }
+  function parsePrivmsg(line){
+    let tags = {};
+    let rest = line;
+    if (rest.startsWith("@")){
+      const sp = rest.indexOf(" ");
+      tags = parseTags(rest.slice(1, sp));
+      rest = rest.slice(sp+1);
+    }
+    const m = rest.match(/^:([^ ]+)\s+PRIVMSG\s+#[^ ]+\s+:(.*)$/);
+    if (!m) return null;
+    const username = (m[1].split("!")[0]) || tags.login || "unknown";
+    return { tags, username, message: m[2] ?? "" };
+  }
+
+  function pickNameColor(tags){
+    const c = tags?.color;
+    if (c && /^#([0-9a-f]{6})$/i.test(c)) return c;
+    return "#a7ffef";
+  }
+
+  // Connect to Twitch IRC
+  const WS_URL = "wss://irc-ws.chat.twitch.tv:443";
   let ws;
-  function start(){
-    try{ ws?.close(); }catch(e){}
-    set(`connecting… ${url} (#${channel})`);
-    ws = new WebSocket(url);
 
-    ws.onopen = () => {
-      set(`open ✅ joining #${channel}`);
+  function connect(){
+    try{ ws?.close(); }catch(e){}
+    setPill(`connecting… #${channel} • text=${textColor.replace("#","")}`);
+    ws = new WebSocket(WS_URL);
+
+    ws.onopen = ()=>{
       ws.send("CAP REQ :twitch.tv/tags twitch.tv/commands twitch.tv/membership");
       ws.send("PASS SCHMOOPIIE");
-      ws.send("NICK justinfan12345");
+      ws.send("NICK justinfan" + Math.floor(1000 + Math.random()*9000));
       ws.send(`JOIN #${channel}`);
     };
 
-    ws.onmessage = (ev) => {
-      const raw = ev.data || "";
-      if (raw.startsWith("PING")) ws.send("PONG :tmi.twitch.tv");
-      if (raw.includes(" JOIN #")) set(`online ✅ joined #${channel}`);
+    ws.onmessage = (ev)=>{
+      const lines = (ev.data||"").split("\r\n").filter(Boolean);
+      for (const line of lines){
+        if (line.startsWith("PING")){ ws.send("PONG :tmi.twitch.tv"); continue; }
+        if (line.includes(" JOIN #")) setPill(`online ✅ #${channel} • text=${textColor.replace("#","")}`);
+        if (line.includes(" PRIVMSG ")){
+          const p = parsePrivmsg(line);
+          if (!p) continue;
+          addMessage({
+            username: p.username,
+            displayName: p.tags["display-name"] || p.username,
+            message: p.message,
+            nameColor: pickNameColor(p.tags)
+          });
+        }
+      }
     };
 
-    ws.onerror = (e) => {
-      // Browser doesn't give much detail here, but keep it visible
-      set(`error ❌ websocket error event`);
-    };
-
-    ws.onclose = (e) => {
-      set(`closed ❌ code=${e.code} reason="${e.reason || ""}" wasClean=${e.wasClean}`);
-      // 1006 is the big one: blocked/aborted
-      setTimeout(start, 2500);
+    ws.onerror = ()=> setPill("error ❌ websocket");
+    ws.onclose = (e)=> {
+      setPill(`closed ❌ code=${e.code} (reconnecting)`);
+      setTimeout(connect, 2000);
     };
   }
-  start();
+
+  // quick local preview message
+  addMessage({
+    username:"chatbox",
+    displayName:"Chatbox",
+    message:`URL-only mode. text=${textColor} bg=${bg} ttl=${ttl} max=${max}`,
+    nameColor:"#00e5ff"
+  });
+
+  connect();
 </script>
 </body>
 </html>
