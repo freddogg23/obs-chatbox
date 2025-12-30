@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>OBS Twitch Chatbox (Menu + Hash Settings)</title>
+<title>OBS Twitch Chatbox (Menu + Hash Settings, Stable)</title>
 
 <style>
   :root{
@@ -156,32 +156,19 @@
 
     <div class="mRow">
       <div><label>Show badges</label>
-        <select id="showBadges">
-          <option value="1">Yes</option>
-          <option value="0">No</option>
-        </select>
+        <select id="showBadges"><option value="1">Yes</option><option value="0">No</option></select>
       </div>
       <div><label>Badge style</label>
-        <select id="badgeStyle">
-          <option value="icon">Icon</option>
-          <option value="text">Text</option>
-        </select>
+        <select id="badgeStyle"><option value="icon">Icon</option><option value="text">Text</option></select>
       </div>
     </div>
 
     <div class="mRow">
       <div><label>Enable 7TV</label>
-        <select id="enable7tv">
-          <option value="1">Yes</option>
-          <option value="0">No</option>
-        </select>
+        <select id="enable7tv"><option value="1">Yes</option><option value="0">No</option></select>
       </div>
       <div><label>7TV set</label>
-        <select id="sevenTvMode">
-          <option value="channel">Channel</option>
-          <option value="global">Global</option>
-          <option value="both">Both</option>
-        </select>
+        <select id="sevenTvMode"><option value="channel">Channel</option><option value="global">Global</option><option value="both">Both</option></select>
       </div>
     </div>
 
@@ -189,7 +176,7 @@
       <div>
         <label>Special name colors JSON (optional)</label>
         <textarea id="specialColors" placeholder='{"someuser":"#ff00ff"}'></textarea>
-        <div class="hint">This is optional. If empty, Twitch name colors are used.</div>
+        <div class="hint">Optional. If empty, Twitch name colors are used.</div>
       </div>
     </div>
 
@@ -203,7 +190,7 @@
     </div>
 
     <div class="hint">
-      This menu saves settings into the URL hash (<b>#…</b>) so it persists in OBS without LocalStorage.
+      Settings persist via the URL hash (<b>#…</b>) — no LocalStorage. Stable reconnect logic.
     </div>
   </div>
 
@@ -225,7 +212,7 @@
     console.log(t);
   }
 
-  // ---- Config parsing: query provides base defaults, hash overrides for persistence ----
+  // ---------- Config: query defaults + hash overrides ----------
   const DEFAULTS = {
     channel: (qs.get("channel") || "freddogg23").replace(/^@/,"").toLowerCase(),
     text: (qs.get("text") || "ffffff").replace("#",""),
@@ -238,7 +225,7 @@
     badgeStyle: (qs.get("badgeStyle") ?? "icon"),
     seven: (qs.get("seven") ?? "1"),
     sevenMode: (qs.get("sevenMode") ?? "channel"),
-    special: (qs.get("special") ?? ""), // can be URL-encoded JSON if you want, or leave empty and use menu
+    special: (qs.get("special") ?? ""),
     menu: (qs.get("menu") ?? "1")
   };
 
@@ -258,8 +245,8 @@
     const h = parseHash();
     const cfg = {...DEFAULTS, ...h};
 
-    // normalize
     cfg.channel = (cfg.channel || "freddogg23").replace(/^@/,"").toLowerCase();
+
     const hex = (cfg.text || "ffffff").replace("#","").trim();
     cfg.text = /^[0-9a-f]{6}$/i.test(hex) ? hex.toLowerCase() : "ffffff";
 
@@ -275,7 +262,6 @@
     cfg.seven = (cfg.seven === "0" ? "0" : "1");
     cfg.sevenMode = (cfg.sevenMode === "global" || cfg.sevenMode === "both") ? cfg.sevenMode : "channel";
 
-    // Special colors JSON (kept in-memory; hash can store it too if you want)
     cfg.special = cfg.special || "";
 
     return cfg;
@@ -287,7 +273,7 @@
     document.documentElement.style.setProperty("--emote-size", `${cfg.emote}px`);
   }
 
-  // ---- 7TV ----
+  // ---------- 7TV ----------
   const sevenTvMap = new Map();
   let sevenTvReady = false;
 
@@ -346,7 +332,7 @@
     }).join("");
   }
 
-  // ---- Badges (basic) ----
+  // ---------- Badges ----------
   const BadgeSVG = {
     broadcaster: `<svg viewBox="0 0 24 24" fill="none"><path d="M7 21h10v-2H7v2Zm10.7-10.1c1.3-1.1 2.3-2.6 2.3-4.9V3H4v3c0 2.3 1 3.8 2.3 4.9C6 12.7 5 14.6 5 17h14c0-2.4-1-4.3-1.3-6.1Z" fill="white" opacity=".9"/></svg>`,
     mod: `<svg viewBox="0 0 24 24" fill="none"><path d="M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5l-8-3Z" fill="white" opacity=".9"/></svg>`,
@@ -372,6 +358,7 @@
     return list;
   }
 
+  // ---------- IRC parsing ----------
   function decodeTag(v){
     return (v||"")
       .replaceAll("\\:", ";").replaceAll("\\s", " ")
@@ -454,7 +441,7 @@
     }, cfg.ttl);
   }
 
-  // ---- Menu + hash writing ----
+  // ---------- Hash persistence ----------
   function fillMenu(cfg){
     $("channel").value = cfg.channel;
     $("textColor").value = "#" + cfg.text;
@@ -485,12 +472,11 @@
       badgeStyle: $("badgeStyle").value === "text" ? "text" : "icon",
       seven: $("enable7tv").value === "0" ? "0" : "1",
       sevenMode: ($("sevenTvMode").value === "global" || $("sevenTvMode").value === "both") ? $("sevenTvMode").value : "channel",
-      special: specialRaw // stored in hash (URL-encoded)
+      special: specialRaw
     };
   }
 
   function writeHash(cfg){
-    // Only store settings in hash (persistence in OBS). Channel is stored too so you can keep URL clean.
     const parts = [];
     const put = (k,v)=> parts.push(encodeURIComponent(k) + "=" + encodeURIComponent(String(v)));
     put("channel", cfg.channel);
@@ -514,34 +500,51 @@
       await navigator.clipboard.writeText(url);
       setStatus("copied URL ✅");
     }catch(e){
-      // fallback
       prompt("Copy this URL:", url);
     }
   }
 
-  // ---- Twitch WS ----
+  // ---------- Stable WebSocket connect ----------
   const WS_URL = "wss://irc-ws.chat.twitch.tv:443";
   let ws = null;
+  let connToken = 0;
+  let reconnectTimer = null;
 
-  async function reconnect(cfg){
-    try{ ws?.close(); }catch(e){}
+  function detachAndClose(){
+    if (!ws) return;
+    try{
+      ws.onopen = ws.onmessage = ws.onerror = ws.onclose = null;
+      ws.close();
+    }catch(e){}
     ws = null;
+  }
+
+  async function connect(cfg){
+    connToken++;
+    const token = connToken;
+
+    // cancel any pending reconnects
+    if (reconnectTimer){ clearTimeout(reconnectTimer); reconnectTimer = null; }
+
+    // stop previous socket without letting it schedule reconnects
+    detachAndClose();
 
     applyCss(cfg);
 
-    // 7TV load if enabled
+    // 7TV load (optional) — only keep result if still latest token
     if (cfg.seven === "1"){
       setStatus(`loading 7TV…`);
-      await load7tv(cfg.channel, cfg.sevenMode).catch(()=>{});
+      try{ await load7tv(cfg.channel, cfg.sevenMode); }catch(e){}
+      if (token !== connToken) return;
     } else {
-      sevenTvReady = false;
-      sevenTvMap.clear();
+      sevenTvReady = false; sevenTvMap.clear();
     }
 
     setStatus(`connecting… #${cfg.channel} • text=${cfg.text}`);
     ws = new WebSocket(WS_URL);
 
     ws.onopen = ()=>{
+      if (token !== connToken) return;
       ws.send("CAP REQ :twitch.tv/tags twitch.tv/commands twitch.tv/membership");
       ws.send("PASS SCHMOOPIIE");
       ws.send("NICK justinfan" + Math.floor(1000 + Math.random()*9000));
@@ -549,6 +552,8 @@
     };
 
     ws.onmessage = (ev)=>{
+      if (token !== connToken) return;
+
       const lines = (ev.data||"").split("\r\n").filter(Boolean);
       for (const line of lines){
         if (line.startsWith("PING")){ ws.send("PONG :tmi.twitch.tv"); continue; }
@@ -568,56 +573,60 @@
       }
     };
 
-    ws.onerror = ()=> setStatus("error ❌ websocket");
-    ws.onclose = ()=> setTimeout(()=>reconnect(getConfig()), 2000);
+    ws.onerror = ()=>{
+      if (token !== connToken) return;
+      setStatus(`error ❌ websocket`);
+    };
+
+    ws.onclose = (e)=>{
+      if (token !== connToken) return;
+      setStatus(`closed ❌ code=${e.code} (reconnecting…)`);
+      reconnectTimer = setTimeout(()=>connect(getConfig()), 2000);
+    };
   }
 
-  // ---- Boot ----
+  // ---------- Menu wiring ----------
   $("menuToggle").addEventListener("click", ()=> $("menu").classList.toggle("open"));
 
   $("apply").addEventListener("click", async ()=>{
     const cfg = readMenu();
-    writeHash(cfg);          // <- persistence in OBS without localstorage
-    await reconnect(cfg);
+    writeHash(cfg);
+    await connect(cfg);
   });
 
   $("copy").addEventListener("click", copyUrl);
 
   $("reset").addEventListener("click", async ()=>{
-    location.hash = "";      // clears persisted settings
+    location.hash = "";
     const cfg = getConfig();
     fillMenu(cfg);
-    await reconnect(cfg);
+    await connect(cfg);
   });
 
   $("hideMenu").addEventListener("click", ()=>{
-    // hides menu by switching to ?menu=0 (and keeps your hash settings)
     const base = location.origin + location.pathname + "?menu=0";
     location.href = base + location.hash;
   });
 
-  // Initial
+  // ---------- Boot ----------
   const cfg0 = getConfig();
   fillMenu(cfg0);
   applyCss(cfg0);
 
-  // preview message
   addMessage({
     username:"chatbox",
     displayName:"Chatbox",
     tags:{ color:"#00e5ff", badges:{ broadcaster:"1" } },
-    message:"Menu saves into URL hash so it works in OBS. Set a color, hit Apply.",
+    message:"Stable menu build loaded. Change settings → Apply. It should stay online now.",
     cfg: cfg0
   });
 
-  // hide menu if requested
   if ((cfg0.menu || "1") === "0") {
-    $("menu").classList.remove("open");
     $("menuToggle").style.display = "none";
     $("menu").style.display = "none";
   }
 
-  reconnect(cfg0);
+  connect(cfg0);
 </script>
 </body>
 </html>
