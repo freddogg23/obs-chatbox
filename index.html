@@ -3,196 +3,139 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>OBS Twitch Chatbox (Badges + 7TV Emotes + 7TV Paints v3)</title>
-
+<title>7TV Paint Diagnostic</title>
 <style>
-  :root{
-    --font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-    --font-size: 24px;
-    --line-height: 1.25;
-    --gap: 10px;
-
-    --msg-bg: rgba(0,0,0,0.35);
-    --radius: 14px;
-    --padY: 10px;
-    --padX: 14px;
-
-    --shadow: 0 6px 22px rgba(0,0,0,0.35);
-    --text-shadow: 0 2px 8px rgba(0,0,0,0.6);
-
-    --emote-size: 34px;
-    --fade-ms: 220;
-  }
-
-  html,body{margin:0;height:100%;background:transparent;overflow:hidden;font-family:var(--font-family)}
-  #wrap{position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:flex-start;padding:12px;box-sizing:border-box}
-  #chat{width:100%;display:flex;flex-direction:column;gap:var(--gap);pointer-events:none}
-
-  .msg{
-    display:flex;gap:10px;background:var(--msg-bg);border-radius:var(--radius);
-    padding:calc(var(--padY)*1px) calc(var(--padX)*1px);
-    box-shadow:var(--shadow);
-    backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
-    opacity:0;transform:translateY(10px);
-    transition:opacity var(--fade-ms)ms ease,transform var(--fade-ms)ms ease;
-  }
-  .msg.show{opacity:1;transform:translateY(0)}
-  .left{display:flex;flex-direction:column;gap:6px;min-width:0;width:100%}
-  .topline{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
-
-  .name{
-    font-size:var(--font-size);line-height:var(--line-height);
-    font-weight:800;text-shadow:var(--text-shadow);
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%;
-  }
-  .paintText{
-    -webkit-background-clip:text;
-    background-clip:text;
-    color:transparent !important;
-  }
-
-  .text{
-    font-size:var(--font-size);line-height:var(--line-height);
-    font-weight:600;text-shadow:var(--text-shadow);
-    word-break:break-word;overflow-wrap:anywhere;min-width:0;
-  }
-
-  #pill{
-    position:absolute;left:10px;top:10px;z-index:40;
-    font-size:12px;padding:8px 10px;border-radius:999px;
-    background:rgba(0,0,0,0.45);color:rgba(255,255,255,0.95);
-    box-shadow:0 10px 28px rgba(0,0,0,0.35);
-    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-    max-width:calc(100% - 20px);
-    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-    pointer-events:none;
-  }
+  html,body{margin:0;height:100%;background:transparent;overflow:hidden;font-family:system-ui,Segoe UI,Arial}
+  #pill{position:absolute;left:10px;top:10px;padding:10px 12px;border-radius:999px;
+    background:rgba(0,0,0,.55);color:#fff;font-size:12px;max-width:calc(100% - 20px);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .row{position:absolute;left:10px;top:50px;color:#fff;font-size:18px;text-shadow:0 2px 8px rgba(0,0,0,.7)}
+  .paintText{-webkit-background-clip:text;background-clip:text;color:transparent !important;font-weight:900}
 </style>
 </head>
-
 <body>
-<div id="wrap"><div id="chat"></div></div>
 <div id="pill">starting…</div>
+<div id="name" class="row">freddogg23</div>
 
 <script>
-const chatEl = document.getElementById("chat");
-const pill = document.getElementById("pill");
+const pill=document.getElementById("pill");
+const nameEl=document.getElementById("name");
+const sevenId="01G4HWTTYG000D3DGNAYJJPAB4";
 
-function setPill(t){ pill.textContent = t; }
+function set(t){ pill.textContent=t; console.log(t); }
 
-function esc(s){
-  return (s ?? "").toString()
-    .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;").replaceAll("'","&#039;");
+async function tryJson(url){
+  try{
+    const r=await fetch(url,{cache:"no-store"});
+    if(!r.ok) return {ok:false, url, status:r.status};
+    const j=await r.json();
+    return {ok:true, url, j};
+  }catch(e){
+    return {ok:false, url, err:String(e?.message||e)};
+  }
 }
 
-// ===== 7TV v3 paint extraction =====
+function pickPaint(obj){
+  if(!obj || typeof obj!=="object") return null;
 
-// Find a paint object somewhere in a v3 user payload
-function findPaint(obj){
-  if (!obj || typeof obj !== "object") return null;
-
-  // likely paths
+  // common containers
   const candidates = [
-    obj?.style?.paint,
-    obj?.style?.paints?.[0],
-    obj?.style?.cosmetics?.paint,
-    obj?.cosmetics?.paint,
-    obj?.paint,
-    obj?.data?.style?.paint,
-    obj?.data?.paint
+    obj.paint,
+    obj.user?.paint,
+    obj.cosmetics?.paint,
+    obj.user?.cosmetics?.paint,
+    obj?.data?.paint,
+    obj?.data?.cosmetics?.paint
   ];
 
   for (const c of candidates){
-    if (c && typeof c === "object") return c;
+    if(c && typeof c==="object") return c;
+  }
+
+  // arrays
+  const arrays = [
+    obj.paints,
+    obj.cosmetics?.paints,
+    obj.user?.paints,
+    obj.user?.cosmetics?.paints,
+    obj.data?.paints,
+    obj.data?.cosmetics?.paints
+  ];
+  for (const a of arrays){
+    if(Array.isArray(a) && a.length){
+      const p = a.find(x=>x && typeof x==="object");
+      if(p) return p;
+    }
   }
 
   return null;
 }
 
-function buildCssFromV3Paint(paint){
-  if (!paint) return null;
+function buildCss(paint){
+  if(!paint) return null;
 
-  // Sometimes paint has direct CSS or "css" string
-  if (typeof paint.css === "string" && paint.css.trim()){
-    // If it's missing background-clip we still use paintText class for it.
-    return paint.css.trim().endsWith(";") ? paint.css.trim() : (paint.css.trim() + ";");
+  if(typeof paint.css==="string" && paint.css.trim()){
+    return paint.css.trim().endsWith(";") ? paint.css.trim() : paint.css.trim()+";";
   }
 
-  // Sometimes it's a gradient definition with stops
-  const stops = paint.stops || paint.gradient?.stops || paint.data?.stops;
+  const stops = paint.stops || paint.gradient?.stops;
   const angle = paint.angle ?? paint.gradient?.angle ?? 90;
   const repeat = !!(paint.repeat ?? paint.gradient?.repeat);
 
-  if (Array.isArray(stops) && stops.length >= 2){
+  if(Array.isArray(stops) && stops.length>=2){
     const parts = stops.map(s=>{
-      const c = s.color || s.colour || s.hex || null;
-      const at = (s.at ?? s.position ?? null);
-      if (!c) return null;
-      return at == null ? `${c}` : `${c} ${Math.round(at*100)}%`;
+      const c = s.color || s.colour || s.hex;
+      const at = s.at ?? s.position;
+      if(!c) return null;
+      return at==null ? `${c}` : `${c} ${Math.round(at*100)}%`;
     }).filter(Boolean);
 
-    if (parts.length >= 2){
+    if(parts.length>=2){
       const fn = repeat ? "repeating-linear-gradient" : "linear-gradient";
       return `background-image:${fn}(${angle}deg, ${parts.join(", ")});`;
     }
   }
 
-  // Some paints are image/url based
-  const url = paint.url || paint.image_url || paint.image || paint.data?.url || null;
-  if (url){
+  const url = paint.url || paint.image_url || paint.image;
+  if(url){
     const safe = url.startsWith("http") ? url : ("https:" + url);
     return `background-image:url("${safe}"); background-size:cover; background-repeat:no-repeat;`;
   }
 
-  // Some paints are a single solid color
   const color = paint.color || paint.colour;
-  if (color) return `background-image:none; color:${color};`;
+  if(color) return `color:${color};`;
 
   return null;
 }
 
-async function fetch7tvV3UserByTwitchId(twitchId){
-  const r = await fetch(`https://7tv.io/v3/users/twitch/${encodeURIComponent(twitchId)}`, { cache:"no-store" });
-  if (!r.ok) return null;
-  return await r.json();
-}
+(async function run(){
+  set("checking cosmetics endpoints…");
 
-// ===== Demo test for your user =====
-async function testPaintSelf(){
-  const twitchId = "68238870";
-  setPill("loading 7TV v3 user…");
+  const urls = [
+    `https://7tv.io/v3/cosmetics?user_id=${encodeURIComponent(sevenId)}`,
+    `https://7tv.io/v3/cosmetics?user=${encodeURIComponent(sevenId)}`,
+    `https://7tv.io/v3/users/${encodeURIComponent(sevenId)}/cosmetics`,
+    `https://7tv.io/v3/users/${encodeURIComponent(sevenId)}`,
+    `https://7tv.io/v3/users/${encodeURIComponent(sevenId)}/profile`
+  ];
 
-  const user = await fetch7tvV3UserByTwitchId(twitchId);
-  if (!user){
-    setPill("paintSelf=0 (v3 user fetch failed)");
-    return;
+  for(const url of urls){
+    const res = await tryJson(url);
+    if(!res.ok) continue;
+
+    const paint = pickPaint(res.j);
+    const css = buildCss(paint);
+
+    if(css){
+      nameEl.classList.add("paintText");
+      nameEl.style.cssText += css;
+      set(`paintSelf=1 source=${url}`);
+      return;
+    }
   }
 
-  const paint = findPaint(user);
-  const css = buildCssFromV3Paint(paint);
-
-  const msg=document.createElement("div");
-  msg.className="msg show";
-  msg.innerHTML = `<div class="left"><div class="topline"></div><div class="text">Paint test line (should paint your name)</div></div>`;
-
-  const name=document.createElement("div");
-  name.className="name";
-  name.textContent="freddogg23";
-
-  if (css){
-    name.classList.add("paintText");
-    name.style.cssText += css;
-    setPill("paintSelf=1 (v3)");
-  } else {
-    setPill("paintSelf=0 (v3: no paint data found)");
-  }
-
-  msg.querySelector(".topline").appendChild(name);
-  chatEl.appendChild(msg);
-}
-
-testPaintSelf();
+  set("paintSelf=0 (no cosmetics paint found on tried endpoints)");
+})();
 </script>
 </body>
 </html>
