@@ -3,106 +3,375 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>OBS Twitch Chatbox (URL Only)</title>
+<title>OBS Twitch Chatbox (Menu + Hash Settings)</title>
+
 <style>
   :root{
     --font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
     --font-size: 24px;
     --line-height: 1.25;
-    --msg-gap: 10px;
+    --gap: 10px;
+
     --msg-bg: rgba(0,0,0,0.35);
-    --msg-radius: 14px;
-    --msg-pad-y: 10px;
-    --msg-pad-x: 14px;
+    --radius: 14px;
+    --padY: 10px;
+    --padX: 14px;
+
     --shadow: 0 6px 22px rgba(0,0,0,0.35);
     --text-shadow: 0 2px 8px rgba(0,0,0,0.6);
-    --name-weight: 800;
-    --msg-weight: 600;
+
+    --emote-size: 34px;
     --fade-ms: 220;
   }
+
   html,body{margin:0;height:100%;background:transparent;overflow:hidden;font-family:var(--font-family)}
   #wrap{position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:flex-start;padding:12px;box-sizing:border-box}
-  #chat{width:100%;display:flex;flex-direction:column;gap:var(--msg-gap);pointer-events:none}
+  #chat{width:100%;display:flex;flex-direction:column;gap:var(--gap);pointer-events:none}
+
   .msg{
-    display:flex;gap:10px;background:var(--msg-bg);border-radius:var(--msg-radius);
-    padding:calc(var(--msg-pad-y)*1px) calc(var(--msg-pad-x)*1px);
-    box-shadow:var(--shadow);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+    display:flex;gap:10px;background:var(--msg-bg);border-radius:var(--radius);
+    padding:calc(var(--padY)*1px) calc(var(--padX)*1px);
+    box-shadow:var(--shadow);
+    backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
     opacity:0;transform:translateY(10px);
     transition:opacity var(--fade-ms)ms ease,transform var(--fade-ms)ms ease;
   }
   .msg.show{opacity:1;transform:translateY(0)}
+
   .left{display:flex;flex-direction:column;gap:6px;min-width:0;width:100%}
-  .topline{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .topline{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+
+  .badges{display:flex;gap:4px;align-items:center}
+  .badge{
+    width:18px;height:18px;border-radius:6px;
+    background:rgba(255,255,255,0.14);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
+    display:inline-flex;align-items:center;justify-content:center;
+    flex:0 0 auto;
+  }
+  .badge svg{width:13px;height:13px;opacity:.92}
+  .badgeText{
+    font-size:12px;line-height:1;padding:2px 6px;border-radius:999px;
+    background:rgba(255,255,255,0.14);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
+  }
+
   .name{
-    font-size:var(--font-size);line-height:var(--line-height);font-weight:var(--name-weight);
-    text-shadow:var(--text-shadow);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%
+    font-size:var(--font-size);line-height:var(--line-height);
+    font-weight:800;text-shadow:var(--text-shadow);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%;
   }
+
   .text{
-    font-size:var(--font-size);line-height:var(--line-height);font-weight:var(--msg-weight);
-    text-shadow:var(--text-shadow);word-break:break-word;overflow-wrap:anywhere;min-width:0
+    font-size:var(--font-size);line-height:var(--line-height);
+    font-weight:600;text-shadow:var(--text-shadow);
+    word-break:break-word;overflow-wrap:anywhere;min-width:0;
   }
+
+  img.emote{
+    width: var(--emote-size);
+    height: var(--emote-size);
+    vertical-align: -8px;
+    margin: 0 2px;
+  }
+
   #pill{
-    position:absolute;left:10px;top:10px;z-index:40;font-size:12px;padding:8px 10px;border-radius:999px;
+    position:absolute;left:10px;top:10px;z-index:40;
+    font-size:12px;padding:8px 10px;border-radius:999px;
     background:rgba(0,0,0,0.45);color:rgba(255,255,255,0.95);
     box-shadow:0 10px 28px rgba(0,0,0,0.35);
     backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-    max-width:calc(100% - 20px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap
+    max-width:calc(100% - 20px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    pointer-events:none;
   }
+
+  /* Menu */
+  #menuToggle{
+    position:absolute;top:10px;right:10px;z-index:50;
+    width:44px;height:44px;border-radius:14px;border:0;
+    background:rgba(0,0,0,0.45);color:#fff;cursor:pointer;
+    box-shadow:0 10px 28px rgba(0,0,0,0.45);
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  }
+  #menu{
+    position:absolute;top:64px;right:10px;z-index:50;
+    width:380px;max-height:calc(100% - 80px);overflow:auto;
+    border-radius:18px;background:rgba(12,12,12,0.76);
+    color:rgba(255,255,255,0.95);
+    box-shadow:0 18px 50px rgba(0,0,0,0.55);
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    padding:14px;display:none;pointer-events:auto;
+  }
+  #menu.open{display:block}
+
+  .mTitle{font-weight:900;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .mRow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+  .mRow.full{grid-template-columns:1fr}
+  label{font-size:12px;opacity:.9;display:block;margin-bottom:6px}
+  input,select,textarea{
+    width:100%;box-sizing:border-box;border-radius:12px;border:1px solid rgba(255,255,255,0.12);
+    background:rgba(255,255,255,0.06);color:#fff;padding:10px;outline:none;
+  }
+  input[type="color"]{padding:0;height:42px}
+  textarea{min-height:90px;resize:vertical;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.3}
+  .btnRow{display:flex;gap:10px;margin-top:10px}
+  .btn{
+    flex:1;cursor:pointer;border:0;border-radius:14px;padding:10px 12px;
+    font-weight:900;color:#fff;background:rgba(255,255,255,0.12);
+  }
+  .btn:hover{background:rgba(255,255,255,0.18)}
+  .hint{font-size:12px;opacity:.82;line-height:1.25;margin-top:8px}
 </style>
 </head>
+
 <body>
   <div id="wrap"><div id="chat"></div></div>
   <div id="pill">starting…</div>
 
+  <button id="menuToggle" title="Settings">⚙️</button>
+  <div id="menu">
+    <div class="mTitle">
+      <div>Chatbox Settings</div>
+      <div id="status" style="font-size:12px;opacity:.85;">idle</div>
+    </div>
+
+    <div class="mRow full">
+      <div><label>Channel (no @)</label><input id="channel"></div>
+    </div>
+
+    <div class="mRow">
+      <div><label>Message text color</label><input id="textColor" type="color"></div>
+      <div><label>Background opacity</label><input id="bgOpacity" type="number" min="0" max="1" step="0.05"></div>
+    </div>
+
+    <div class="mRow">
+      <div><label>Font size (px)</label><input id="fontSize" type="number" min="10" max="90" step="1"></div>
+      <div><label>Emote size (px)</label><input id="emoteSize" type="number" min="12" max="96" step="1"></div>
+    </div>
+
+    <div class="mRow">
+      <div><label>Max messages</label><input id="maxMessages" type="number" min="1" max="50" step="1"></div>
+      <div><label>Message lifetime (ms)</label><input id="ttlMs" type="number" min="2000" max="600000" step="500"></div>
+    </div>
+
+    <div class="mRow">
+      <div><label>Show badges</label>
+        <select id="showBadges">
+          <option value="1">Yes</option>
+          <option value="0">No</option>
+        </select>
+      </div>
+      <div><label>Badge style</label>
+        <select id="badgeStyle">
+          <option value="icon">Icon</option>
+          <option value="text">Text</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="mRow">
+      <div><label>Enable 7TV</label>
+        <select id="enable7tv">
+          <option value="1">Yes</option>
+          <option value="0">No</option>
+        </select>
+      </div>
+      <div><label>7TV set</label>
+        <select id="sevenTvMode">
+          <option value="channel">Channel</option>
+          <option value="global">Global</option>
+          <option value="both">Both</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="mRow full">
+      <div>
+        <label>Special name colors JSON (optional)</label>
+        <textarea id="specialColors" placeholder='{"someuser":"#ff00ff"}'></textarea>
+        <div class="hint">This is optional. If empty, Twitch name colors are used.</div>
+      </div>
+    </div>
+
+    <div class="btnRow">
+      <button class="btn" id="apply">Apply</button>
+      <button class="btn" id="copy">Copy URL</button>
+    </div>
+    <div class="btnRow">
+      <button class="btn" id="reset">Reset</button>
+      <button class="btn" id="hideMenu">Hide menu</button>
+    </div>
+
+    <div class="hint">
+      This menu saves settings into the URL hash (<b>#…</b>) so it persists in OBS without LocalStorage.
+    </div>
+  </div>
+
 <script>
+  const $ = (id)=>document.getElementById(id);
+  const chatEl = $("chat");
+  const pill = $("pill");
+  const statusEl = $("status");
   const qs = new URLSearchParams(location.search);
-  const chatEl = document.getElementById("chat");
-  const pill = document.getElementById("pill");
 
   const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
   const esc=(s)=>(s??"").toString()
     .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
     .replaceAll('"',"&quot;").replaceAll("'","&#039;");
 
-  // URL-only config
-  const channel = (qs.get("channel") || "freddogg23").trim().replace(/^@/,"").toLowerCase();
-  const textHexRaw = (qs.get("text") || "ffffff").replace("#","").trim();
-  const textColor = /^([0-9a-f]{6})$/i.test(textHexRaw) ? ("#" + textHexRaw) : "#ffffff";
-  const bg = clamp(parseFloat(qs.get("bg") ?? "0.35"), 0, 1);
-  const ttl = clamp(parseInt(qs.get("ttl") ?? "16000", 10) || 16000, 2000, 600000);
-  const max = clamp(parseInt(qs.get("max") ?? "10", 10) || 10, 1, 50);
-  const font = (qs.get("font") || "system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif").trim();
-  const size = clamp(parseInt(qs.get("size") ?? "24", 10) || 24, 10, 90);
-
-  document.documentElement.style.setProperty("--msg-bg", `rgba(0,0,0,${bg})`);
-  document.documentElement.style.setProperty("--font-family", font);
-  document.documentElement.style.setProperty("--font-size", `${size}px`);
-
-  function setPill(t){ pill.textContent = t; console.log(t); }
-
-  function addMessage({username, displayName, message, nameColor}){
-    while (chatEl.children.length >= max) chatEl.removeChild(chatEl.firstChild);
-
-    const msg = document.createElement("div");
-    msg.className = "msg";
-    msg.innerHTML = `
-      <div class="left">
-        <div class="topline">
-          <div class="name" style="color:${nameColor}">${esc(displayName||username)}</div>
-        </div>
-        <div class="text" style="color:${textColor}">${esc(message)}</div>
-      </div>
-    `;
-    chatEl.appendChild(msg);
-    requestAnimationFrame(()=>msg.classList.add("show"));
-
-    setTimeout(()=>{
-      msg.classList.remove("show");
-      setTimeout(()=>{ if (msg.parentNode) msg.parentNode.removeChild(msg); }, 260);
-    }, ttl);
+  function setStatus(t){
+    statusEl.textContent = t;
+    pill.textContent = t;
+    console.log(t);
   }
 
-  // Parse IRC tags
+  // ---- Config parsing: query provides base defaults, hash overrides for persistence ----
+  const DEFAULTS = {
+    channel: (qs.get("channel") || "freddogg23").replace(/^@/,"").toLowerCase(),
+    text: (qs.get("text") || "ffffff").replace("#",""),
+    bg: parseFloat(qs.get("bg") ?? "0.35"),
+    size: parseInt(qs.get("size") ?? "24", 10),
+    emote: parseInt(qs.get("emote") ?? "34", 10),
+    ttl: parseInt(qs.get("ttl") ?? "16000", 10),
+    max: parseInt(qs.get("max") ?? "10", 10),
+    badges: (qs.get("badges") ?? "1"),
+    badgeStyle: (qs.get("badgeStyle") ?? "icon"),
+    seven: (qs.get("seven") ?? "1"),
+    sevenMode: (qs.get("sevenMode") ?? "channel"),
+    special: (qs.get("special") ?? ""), // can be URL-encoded JSON if you want, or leave empty and use menu
+    menu: (qs.get("menu") ?? "1")
+  };
+
+  function parseHash(){
+    const h = (location.hash || "").replace(/^#/, "");
+    const out = {};
+    if (!h) return out;
+    for (const part of h.split("&")){
+      const [k,v] = part.split("=");
+      if (!k) continue;
+      out[decodeURIComponent(k)] = decodeURIComponent(v ?? "");
+    }
+    return out;
+  }
+
+  function getConfig(){
+    const h = parseHash();
+    const cfg = {...DEFAULTS, ...h};
+
+    // normalize
+    cfg.channel = (cfg.channel || "freddogg23").replace(/^@/,"").toLowerCase();
+    const hex = (cfg.text || "ffffff").replace("#","").trim();
+    cfg.text = /^[0-9a-f]{6}$/i.test(hex) ? hex.toLowerCase() : "ffffff";
+
+    cfg.bg = clamp(parseFloat(cfg.bg ?? 0.35), 0, 1);
+    cfg.size = clamp(parseInt(cfg.size ?? 24,10) || 24, 10, 90);
+    cfg.emote = clamp(parseInt(cfg.emote ?? 34,10) || 34, 12, 96);
+    cfg.ttl = clamp(parseInt(cfg.ttl ?? 16000,10) || 16000, 2000, 600000);
+    cfg.max = clamp(parseInt(cfg.max ?? 10,10) || 10, 1, 50);
+
+    cfg.badges = (cfg.badges === "0" ? "0" : "1");
+    cfg.badgeStyle = (cfg.badgeStyle === "text" ? "text" : "icon");
+
+    cfg.seven = (cfg.seven === "0" ? "0" : "1");
+    cfg.sevenMode = (cfg.sevenMode === "global" || cfg.sevenMode === "both") ? cfg.sevenMode : "channel";
+
+    // Special colors JSON (kept in-memory; hash can store it too if you want)
+    cfg.special = cfg.special || "";
+
+    return cfg;
+  }
+
+  function applyCss(cfg){
+    document.documentElement.style.setProperty("--msg-bg", `rgba(0,0,0,${cfg.bg})`);
+    document.documentElement.style.setProperty("--font-size", `${cfg.size}px`);
+    document.documentElement.style.setProperty("--emote-size", `${cfg.emote}px`);
+  }
+
+  // ---- 7TV ----
+  const sevenTvMap = new Map();
+  let sevenTvReady = false;
+
+  async function fetchJson(url){
+    const r = await fetch(url, { cache: "no-store" });
+    if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+    return await r.json();
+  }
+  function pickSevenTvFileUrl(emoteObj){
+    const host = emoteObj?.data?.host;
+    if (!host?.url || !Array.isArray(host.files)) return null;
+    const names = host.files.map(f => f.name);
+    const pick =
+      names.includes("4x.webp") ? "4x.webp" :
+      names.includes("3x.webp") ? "3x.webp" :
+      names.includes("2x.webp") ? "2x.webp" :
+      names.includes("1x.webp") ? "1x.webp" :
+      names[0];
+    return `https:${host.url}/${pick}`;
+  }
+  async function load7tv(login, mode){
+    sevenTvMap.clear();
+    sevenTvReady = false;
+
+    const wantsGlobal = (mode === "global" || mode === "both");
+    const wantsChannel = (mode === "channel" || mode === "both");
+
+    try{
+      if (wantsGlobal){
+        const global = await fetchJson("https://7tv.io/v3/emote-sets/global");
+        for (const e of (global?.emotes || [])){
+          const url = pickSevenTvFileUrl(e);
+          if (e?.name && url) sevenTvMap.set(e.name, url);
+        }
+      }
+      if (wantsChannel){
+        const user = await fetchJson(`https://7tv.io/v3/users/twitch/${encodeURIComponent(login)}`);
+        for (const e of (user?.emote_set?.emotes || [])){
+          const url = pickSevenTvFileUrl(e);
+          if (e?.name && url) sevenTvMap.set(e.name, url);
+        }
+      }
+      sevenTvReady = true;
+    }catch(e){
+      sevenTvReady = false;
+    }
+  }
+  function render7tv(text, cfg){
+    if (cfg.seven !== "1" || !sevenTvReady || sevenTvMap.size === 0) return esc(text);
+    const parts = text.split(/(\s+)/);
+    return parts.map(tok => {
+      if (/^\s+$/.test(tok)) return tok;
+      const url = sevenTvMap.get(tok);
+      if (!url) return esc(tok);
+      return `<img class="emote" alt="${esc(tok)}" src="${url}" loading="lazy" />`;
+    }).join("");
+  }
+
+  // ---- Badges (basic) ----
+  const BadgeSVG = {
+    broadcaster: `<svg viewBox="0 0 24 24" fill="none"><path d="M7 21h10v-2H7v2Zm10.7-10.1c1.3-1.1 2.3-2.6 2.3-4.9V3H4v3c0 2.3 1 3.8 2.3 4.9C6 12.7 5 14.6 5 17h14c0-2.4-1-4.3-1.3-6.1Z" fill="white" opacity=".9"/></svg>`,
+    mod: `<svg viewBox="0 0 24 24" fill="none"><path d="M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5l-8-3Z" fill="white" opacity=".9"/></svg>`,
+    vip: `<svg viewBox="0 0 24 24" fill="none"><path d="M12 3l2.3 4.9 5.4.8-3.9 3.8.9 5.4L12 15.9 7.3 18l.9-5.4-3.9-3.8 5.4-.8L12 3Z" fill="white" opacity=".9"/></svg>`,
+    sub: `<svg viewBox="0 0 24 24" fill="none"><path d="M12 21s-7-4.6-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.4-7 10-7 10Z" fill="white" opacity=".9"/></svg>`
+  };
+  function parseBadges(badgesStr){
+    const out = {};
+    if (!badgesStr) return out;
+    for (const p of badgesStr.split(",")){
+      const [k,v] = p.split("/");
+      if (k) out[k] = v || "1";
+    }
+    return out;
+  }
+  function badgeList(tags){
+    const b = tags?.badges || {};
+    const list = [];
+    if (b.broadcaster) list.push(["broadcaster","BC"]);
+    if (b.moderator) list.push(["mod","MOD"]);
+    if (b.vip) list.push(["vip","VIP"]);
+    if (b.subscriber || b.founder) list.push(["sub","SUB"]);
+    return list;
+  }
+
   function decodeTag(v){
     return (v||"")
       .replaceAll("\\:", ";").replaceAll("\\s", " ")
@@ -132,62 +401,223 @@
     return { tags, username, message: m[2] ?? "" };
   }
 
-  function pickNameColor(tags){
+  function getSpecialMap(cfg){
+    if (!cfg.special) return {};
+    try{ return JSON.parse(cfg.special) || {}; }catch(e){ return {}; }
+  }
+  function pickNameColor(username, tags, cfg){
+    const map = getSpecialMap(cfg);
+    const u = (username||"").toLowerCase();
+    if (map[u]) return map[u];
     const c = tags?.color;
     if (c && /^#([0-9a-f]{6})$/i.test(c)) return c;
     return "#a7ffef";
   }
 
-  // Connect to Twitch IRC
-  const WS_URL = "wss://irc-ws.chat.twitch.tv:443";
-  let ws;
+  function addMessage({username, displayName, tags, message, cfg}){
+    while (chatEl.children.length >= cfg.max) chatEl.removeChild(chatEl.firstChild);
 
-  function connect(){
+    const showBadges = cfg.badges === "1";
+    const style = cfg.badgeStyle;
+    const b = badgeList(tags);
+
+    let badgesHtml = "";
+    if (showBadges && b.length){
+      if (style === "text"){
+        badgesHtml = `<span class="badges">` + b.map(([k,t])=>`<span class="badgeText" title="${k}">${t}</span>`).join("") + `</span>`;
+      } else {
+        badgesHtml = `<span class="badges">` + b.map(([k])=>`<span class="badge" title="${k}">${BadgeSVG[k]||""}</span>`).join("") + `</span>`;
+      }
+    }
+
+    const textColor = "#" + cfg.text;
+    const nameColor = pickNameColor(username, tags, cfg);
+    const bodyHtml = render7tv(message, cfg);
+
+    const el = document.createElement("div");
+    el.className = "msg";
+    el.innerHTML = `
+      <div class="left">
+        <div class="topline">
+          ${badgesHtml}
+          <div class="name" style="color:${nameColor}">${esc(displayName || username)}</div>
+        </div>
+        <div class="text" style="color:${textColor}">${bodyHtml}</div>
+      </div>
+    `;
+    chatEl.appendChild(el);
+    requestAnimationFrame(()=>el.classList.add("show"));
+
+    setTimeout(()=>{
+      el.classList.remove("show");
+      setTimeout(()=>{ if (el.parentNode) el.parentNode.removeChild(el); }, 260);
+    }, cfg.ttl);
+  }
+
+  // ---- Menu + hash writing ----
+  function fillMenu(cfg){
+    $("channel").value = cfg.channel;
+    $("textColor").value = "#" + cfg.text;
+    $("bgOpacity").value = cfg.bg;
+    $("fontSize").value = cfg.size;
+    $("emoteSize").value = cfg.emote;
+    $("maxMessages").value = cfg.max;
+    $("ttlMs").value = cfg.ttl;
+    $("showBadges").value = cfg.badges;
+    $("badgeStyle").value = cfg.badgeStyle;
+    $("enable7tv").value = cfg.seven;
+    $("sevenTvMode").value = cfg.sevenMode;
+    $("specialColors").value = cfg.special || "";
+  }
+
+  function readMenu(){
+    const hex = ($("textColor").value || "#ffffff").replace("#","");
+    const specialRaw = ($("specialColors").value || "").trim();
+    return {
+      channel: ($("channel").value || "freddogg23").trim().replace(/^@/,"").toLowerCase(),
+      text: /^[0-9a-f]{6}$/i.test(hex) ? hex.toLowerCase() : "ffffff",
+      bg: clamp(parseFloat($("bgOpacity").value ?? "0.35"), 0, 1),
+      size: clamp(parseInt($("fontSize").value ?? "24",10) || 24, 10, 90),
+      emote: clamp(parseInt($("emoteSize").value ?? "34",10) || 34, 12, 96),
+      max: clamp(parseInt($("maxMessages").value ?? "10",10) || 10, 1, 50),
+      ttl: clamp(parseInt($("ttlMs").value ?? "16000",10) || 16000, 2000, 600000),
+      badges: $("showBadges").value === "0" ? "0" : "1",
+      badgeStyle: $("badgeStyle").value === "text" ? "text" : "icon",
+      seven: $("enable7tv").value === "0" ? "0" : "1",
+      sevenMode: ($("sevenTvMode").value === "global" || $("sevenTvMode").value === "both") ? $("sevenTvMode").value : "channel",
+      special: specialRaw // stored in hash (URL-encoded)
+    };
+  }
+
+  function writeHash(cfg){
+    // Only store settings in hash (persistence in OBS). Channel is stored too so you can keep URL clean.
+    const parts = [];
+    const put = (k,v)=> parts.push(encodeURIComponent(k) + "=" + encodeURIComponent(String(v)));
+    put("channel", cfg.channel);
+    put("text", cfg.text);
+    put("bg", cfg.bg);
+    put("size", cfg.size);
+    put("emote", cfg.emote);
+    put("max", cfg.max);
+    put("ttl", cfg.ttl);
+    put("badges", cfg.badges);
+    put("badgeStyle", cfg.badgeStyle);
+    put("seven", cfg.seven);
+    put("sevenMode", cfg.sevenMode);
+    if ((cfg.special || "").trim()) put("special", cfg.special.trim());
+    location.hash = parts.join("&");
+  }
+
+  async function copyUrl(){
+    const url = location.origin + location.pathname + location.search + location.hash;
+    try{
+      await navigator.clipboard.writeText(url);
+      setStatus("copied URL ✅");
+    }catch(e){
+      // fallback
+      prompt("Copy this URL:", url);
+    }
+  }
+
+  // ---- Twitch WS ----
+  const WS_URL = "wss://irc-ws.chat.twitch.tv:443";
+  let ws = null;
+
+  async function reconnect(cfg){
     try{ ws?.close(); }catch(e){}
-    setPill(`connecting… #${channel} • text=${textColor.replace("#","")}`);
+    ws = null;
+
+    applyCss(cfg);
+
+    // 7TV load if enabled
+    if (cfg.seven === "1"){
+      setStatus(`loading 7TV…`);
+      await load7tv(cfg.channel, cfg.sevenMode).catch(()=>{});
+    } else {
+      sevenTvReady = false;
+      sevenTvMap.clear();
+    }
+
+    setStatus(`connecting… #${cfg.channel} • text=${cfg.text}`);
     ws = new WebSocket(WS_URL);
 
     ws.onopen = ()=>{
       ws.send("CAP REQ :twitch.tv/tags twitch.tv/commands twitch.tv/membership");
       ws.send("PASS SCHMOOPIIE");
       ws.send("NICK justinfan" + Math.floor(1000 + Math.random()*9000));
-      ws.send(`JOIN #${channel}`);
+      ws.send(`JOIN #${cfg.channel}`);
     };
 
     ws.onmessage = (ev)=>{
       const lines = (ev.data||"").split("\r\n").filter(Boolean);
       for (const line of lines){
         if (line.startsWith("PING")){ ws.send("PONG :tmi.twitch.tv"); continue; }
-        if (line.includes(" JOIN #")) setPill(`online ✅ #${channel} • text=${textColor.replace("#","")}`);
+        if (line.includes(" JOIN #")) setStatus(`online ✅ #${cfg.channel} • text=${cfg.text}`);
         if (line.includes(" PRIVMSG ")){
           const p = parsePrivmsg(line);
           if (!p) continue;
+
           addMessage({
             username: p.username,
             displayName: p.tags["display-name"] || p.username,
+            tags: { color: p.tags.color || null, badges: parseBadges(p.tags.badges || "") },
             message: p.message,
-            nameColor: pickNameColor(p.tags)
+            cfg
           });
         }
       }
     };
 
-    ws.onerror = ()=> setPill("error ❌ websocket");
-    ws.onclose = (e)=> {
-      setPill(`closed ❌ code=${e.code} (reconnecting)`);
-      setTimeout(connect, 2000);
-    };
+    ws.onerror = ()=> setStatus("error ❌ websocket");
+    ws.onclose = ()=> setTimeout(()=>reconnect(getConfig()), 2000);
   }
 
-  // quick local preview message
+  // ---- Boot ----
+  $("menuToggle").addEventListener("click", ()=> $("menu").classList.toggle("open"));
+
+  $("apply").addEventListener("click", async ()=>{
+    const cfg = readMenu();
+    writeHash(cfg);          // <- persistence in OBS without localstorage
+    await reconnect(cfg);
+  });
+
+  $("copy").addEventListener("click", copyUrl);
+
+  $("reset").addEventListener("click", async ()=>{
+    location.hash = "";      // clears persisted settings
+    const cfg = getConfig();
+    fillMenu(cfg);
+    await reconnect(cfg);
+  });
+
+  $("hideMenu").addEventListener("click", ()=>{
+    // hides menu by switching to ?menu=0 (and keeps your hash settings)
+    const base = location.origin + location.pathname + "?menu=0";
+    location.href = base + location.hash;
+  });
+
+  // Initial
+  const cfg0 = getConfig();
+  fillMenu(cfg0);
+  applyCss(cfg0);
+
+  // preview message
   addMessage({
     username:"chatbox",
     displayName:"Chatbox",
-    message:`URL-only mode. text=${textColor} bg=${bg} ttl=${ttl} max=${max}`,
-    nameColor:"#00e5ff"
+    tags:{ color:"#00e5ff", badges:{ broadcaster:"1" } },
+    message:"Menu saves into URL hash so it works in OBS. Set a color, hit Apply.",
+    cfg: cfg0
   });
 
-  connect();
+  // hide menu if requested
+  if ((cfg0.menu || "1") === "0") {
+    $("menu").classList.remove("open");
+    $("menuToggle").style.display = "none";
+    $("menu").style.display = "none";
+  }
+
+  reconnect(cfg0);
 </script>
 </body>
 </html>
