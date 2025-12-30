@@ -56,6 +56,8 @@
     font-weight:800;text-shadow:var(--text-shadow);
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%;
   }
+
+  /* paints: gradient background on text */
   .paintText{
     -webkit-background-clip:text;
     background-clip:text;
@@ -96,7 +98,7 @@
   }
   #menu{
     position:absolute;top:64px;right:10px;z-index:50;
-    width:420px;max-height:calc(100% - 80px);overflow:auto;
+    width:440px;max-height:calc(100% - 80px);overflow:auto;
     border-radius:18px;background:rgba(12,12,12,0.80);
     color:rgba(255,255,255,0.95);
     box-shadow:0 18px 50px rgba(0,0,0,0.55);
@@ -140,11 +142,20 @@
     </div>
 
     <div class="warn">
-      Badges + channel 7TV + paints need Twitch creds (sessionStorage). In OBS: right-click source → Interact → paste creds → Save creds → Apply.
+      <b>OBS:</b> Badges + channel 7TV + paints need Twitch creds (sessionStorage).
+      In OBS: right-click source → <b>Interact</b> → paste creds → <b>Save creds</b> → Apply.
     </div>
 
     <div class="mRow full">
       <div><label>Channel (no @)</label><input id="channel" /></div>
+    </div>
+
+    <div class="mRow full">
+      <div>
+        <label>My 7TV User ID (for paints on your own name)</label>
+        <input id="my7tvUserId" placeholder="e.g. 01G4HWTTYG000D3DGNAYJJPAB4" />
+        <div class="hint">This fixes cases where paints don’t resolve correctly via Twitch-ID cosmetics.</div>
+      </div>
     </div>
 
     <div class="mRow">
@@ -235,12 +246,12 @@
     </div>
 
     <div class="hint">
-      If paints still don’t show, the pill will show <b>paint=0</b> for your own Twitch ID.
+      Pill shows: <b>7TV</b>, <b>badges</b>, <b>paints</b>, and <b>paintHits</b>.
     </div>
   </div>
 
 <script>
-/* ========= Error to pill ========= */
+/* ===== error-to-pill ===== */
 (function(){
   function showErr(msg){
     const t = "ERR: " + (msg || "unknown");
@@ -254,7 +265,7 @@
   window.addEventListener("unhandledrejection", (e)=> showErr(e?.reason?.message || String(e?.reason)));
 })();
 
-/* ========= Util ========= */
+/* ===== util ===== */
 const $ = (id)=>document.getElementById(id);
 const chatEl = $("chat");
 const pill = $("pill");
@@ -272,9 +283,10 @@ function setStatus(t){
   console.log(t);
 }
 
-/* ========= Config ========= */
+/* ===== config ===== */
 const DEFAULTS = {
   channel: (qs.get("channel") || "freddogg23").replace(/^@/,"").toLowerCase(),
+  my7tv: (qs.get("my7tv") || ""), // optional
   text: (qs.get("text") || "ffffff").replace("#",""),
   bg: parseFloat(qs.get("bg") ?? "0.35"),
   size: parseInt(qs.get("size") ?? "24", 10),
@@ -307,6 +319,8 @@ function getConfig(){
   const cfg = {...DEFAULTS, ...h};
 
   cfg.channel = (cfg.channel || "freddogg23").replace(/^@/,"").toLowerCase();
+  cfg.my7tv = (cfg.my7tv || "").trim();
+
   const hex = (cfg.text || "ffffff").replace("#","").trim();
   cfg.text = /^[0-9a-f]{6}$/i.test(hex) ? hex.toLowerCase() : "ffffff";
 
@@ -337,6 +351,7 @@ function applyCss(cfg){
 
 function fillMenu(cfg){
   $("channel").value = cfg.channel;
+  $("my7tvUserId").value = cfg.my7tv || "";
   $("textColor").value = "#" + cfg.text;
   $("bgOpacity").value = cfg.bg;
   $("fontSize").value = cfg.size;
@@ -357,6 +372,7 @@ function readMenu(){
   const specialRaw = ($("specialColors").value || "").trim();
   return {
     channel: ($("channel").value || "freddogg23").trim().replace(/^@/,"").toLowerCase(),
+    my7tv: ($("my7tvUserId").value || "").trim(),
     text: /^[0-9a-f]{6}$/i.test(hex) ? hex.toLowerCase() : "ffffff",
     bg: clamp(parseFloat($("bgOpacity").value ?? "0.35"), 0, 1),
     size: clamp(parseInt($("fontSize").value ?? "24",10) || 24, 10, 90),
@@ -377,6 +393,7 @@ function writeHash(cfg){
   const parts = [];
   const put = (k,v)=> parts.push(encodeURIComponent(k) + "=" + encodeURIComponent(String(v)));
   put("channel", cfg.channel);
+  if (cfg.my7tv) put("my7tv", cfg.my7tv);
   put("text", cfg.text);
   put("bg", cfg.bg);
   put("size", cfg.size);
@@ -399,7 +416,7 @@ async function copyUrl(){
   catch(e){ prompt("Copy this URL:", url); }
 }
 
-/* ========= Creds ========= */
+/* ===== creds ===== */
 const CREDS_KEY="twitch_creds_session_v1";
 function getCreds(){ try{ return JSON.parse(sessionStorage.getItem(CREDS_KEY)||"null"); }catch{ return null; } }
 function setCreds(clientId, token){ sessionStorage.setItem(CREDS_KEY, JSON.stringify({clientId, token})); }
@@ -407,7 +424,7 @@ function clearCreds(){ sessionStorage.removeItem(CREDS_KEY); }
 function credsPresent(){ const c=getCreds(); return !!(c?.clientId && c?.token); }
 function fillCredInputs(){ const c=getCreds(); $("twitchClientId").value=c?.clientId||""; $("twitchToken").value=c?.token||""; }
 
-/* ========= Twitch API + ID cache + badges ========= */
+/* ===== twitch api + id cache + badges ===== */
 let badgeCache={global:new Map(),channel:new Map(),loadedFor:null};
 const twitchIdCache=new Map();
 const twitchIdInflight=new Map();
@@ -488,7 +505,7 @@ function getBadgeImgUrlsFromTags(tags){
   return urls;
 }
 
-/* ========= 7TV emotes ========= */
+/* ===== 7tv emotes ===== */
 const sevenTvMap=new Map();
 let sevenTvReady=false;
 
@@ -553,9 +570,10 @@ function render7tvTokens(text,cfg){
   }).join("");
 }
 
-/* ========= 7TV paints FIX: use returned paints directly (no users matching) ========= */
-const paintCache = new Map();     // twitchId -> {painted, css, count}
+/* ===== 7tv paints (two paths: twitch-id cosmetics, and your 7tv-id cosmetics) ===== */
+const paintCache = new Map();     // key -> {painted, css}
 const paintInflight = new Map();
+let paintHits = 0;
 
 function int32ToHexRGBA(n){
   let u = Number(n);
@@ -573,7 +591,6 @@ function int32ToHexRGBA(n){
 
 function buildPaintCssFromV2Paint(paint){
   if (!paint) return null;
-
   const angle = Number.isFinite(paint.angle) ? paint.angle : 90;
   const repeat = !!paint.repeat;
   const stops = Array.isArray(paint.stops) ? paint.stops : [];
@@ -597,50 +614,81 @@ function buildPaintCssFromV2Paint(paint){
   return null;
 }
 
-function pickActivePaint(paints){
+function pickFirstPaint(paints){
   if (!Array.isArray(paints) || paints.length === 0) return null;
-
-  // try common flags
-  const flagged = paints.find(p => p.selected || p.active || p.equipped);
-  if (flagged) return flagged;
-
-  // otherwise just first paint
+  // choose the first paint returned (v2 cosmetics is typically scoped to the requested user)
   return paints[0];
 }
 
-async function get7tvPaintForTwitchId(twitchId){
-  if (!twitchId) return { painted:false, css:null, count:0 };
-  if (paintCache.has(twitchId)) return paintCache.get(twitchId);
-  if (paintInflight.has(twitchId)) return await paintInflight.get(twitchId);
+async function fetchCosmeticsByTwitchId(twitchId){
+  const url = `https://api.7tv.app/v2/cosmetics?user_identifier=twitch_id&id=${encodeURIComponent(twitchId)}`;
+  const r = await fetch(url, { cache:"no-store" });
+  if (!r.ok) throw new Error(`7TV cosmetics ${r.status}`);
+  return await r.json();
+}
+
+async function fetchCosmeticsBy7tvId(sevenId){
+  // Some deployments use the same endpoint with user_identifier=7tv_id
+  const url = `https://api.7tv.app/v2/cosmetics?user_identifier=7tv_id&id=${encodeURIComponent(sevenId)}`;
+  const r = await fetch(url, { cache:"no-store" });
+  if (!r.ok) throw new Error(`7TV cosmetics(7tv) ${r.status}`);
+  return await r.json();
+}
+
+async function getPaintForUser(username, cfg, tags){
+  // Keyed by username lower (paint differs per user)
+  const key = "u:" + (username||"").toLowerCase();
+  if (paintCache.has(key)) return paintCache.get(key);
+  if (paintInflight.has(key)) return await paintInflight.get(key);
 
   const p = (async ()=>{
     try{
-      const url = `https://api.7tv.app/v2/cosmetics?user_identifier=twitch_id&id=${encodeURIComponent(twitchId)}`;
-      const r = await fetch(url, { cache:"no-store" });
-      if (!r.ok) throw new Error(`7TV cosmetics ${r.status}`);
+      // 1) Try Twitch-ID cosmetics (best for general chatters)
+      if (credsPresent()){
+        const twitchId = await getTwitchIdByLogin(username);
+        if (twitchId){
+          const data = await fetchCosmeticsByTwitchId(twitchId);
+          const paints = Array.isArray(data.paints) ? data.paints : [];
+          const paint = pickFirstPaint(paints);
+          const css = buildPaintCssFromV2Paint(paint);
+          const res = css ? { painted:true, css } : { painted:false, css:null };
+          paintCache.set(key, res);
+          paintInflight.delete(key);
+          if (res.painted) paintHits++;
+          return res;
+        }
+      }
 
-      const data = await r.json();
-      const paints = Array.isArray(data.paints) ? data.paints : [];
-      const paint = pickActivePaint(paints);
-      const css = buildPaintCssFromV2Paint(paint);
+      // 2) If this is YOU (channel owner) and you provided a 7TV user ID, use that.
+      if ((username||"").toLowerCase() === (cfg.channel||"").toLowerCase() && cfg.my7tv){
+        const data2 = await fetchCosmeticsBy7tvId(cfg.my7tv);
+        const paints2 = Array.isArray(data2.paints) ? data2.paints : [];
+        const paint2 = pickFirstPaint(paints2);
+        const css2 = buildPaintCssFromV2Paint(paint2);
+        const res2 = css2 ? { painted:true, css:css2 } : { painted:false, css:null };
+        paintCache.set(key, res2);
+        paintInflight.delete(key);
+        if (res2.painted) paintHits++;
+        return res2;
+      }
 
-      const res = css ? { painted:true, css, count: paints.length } : { painted:false, css:null, count: paints.length };
-      paintCache.set(twitchId, res);
-      paintInflight.delete(twitchId);
+      const res = { painted:false, css:null };
+      paintCache.set(key, res);
+      paintInflight.delete(key);
       return res;
     }catch(e){
-      const res = { painted:false, css:null, count:0 };
-      paintCache.set(twitchId, res);
-      paintInflight.delete(twitchId);
+      const res = { painted:false, css:null };
+      paintCache.set(key, res);
+      paintInflight.delete(key);
       return res;
     }
   })();
 
-  paintInflight.set(twitchId, p);
+  paintInflight.set(key, p);
   return await p;
 }
 
-/* ========= IRC parsing + fallback name color ========= */
+/* ===== IRC parsing + fallback name color ===== */
 function decodeTag(v){
   return (v||"")
     .replaceAll("\\:", ";")
@@ -692,7 +740,7 @@ function pickFallbackNameColor(username,tags,cfg){
   return "#a7ffef";
 }
 
-/* ========= Badges HTML ========= */
+/* ===== badges html ===== */
 function roleTextBadges(tags){
   const b=tags?.badges||{};
   const list=[];
@@ -715,7 +763,7 @@ function buildBadgesHtml(tags,cfg){
   return `<span class="badges">` + imgs.map(b=>`<img class="badgeImg" src="${b.url}" alt="${esc(b.setId)}" title="${esc(b.setId+"/"+b.version)}" loading="lazy" />`).join("") + `</span>`;
 }
 
-/* ========= Render message (paint fix) ========= */
+/* ===== render message ===== */
 async function addMessage({username, displayName, tags, message, cfg}){
   while(chatEl.children.length>=cfg.max) chatEl.removeChild(chatEl.firstChild);
 
@@ -727,32 +775,22 @@ async function addMessage({username, displayName, tags, message, cfg}){
   let nameStyle="";
   const fallbackColor = pickFallbackNameColor(username, tags, cfg);
 
-  if (cfg.paints === "1" && credsPresent()){
-    const twitchId = await getTwitchIdByLogin(username);
-    if (twitchId){
-      const paint = await get7tvPaintForTwitchId(twitchId);
-      // show paint count once for debugging (doesn't spam because cached)
-      // (we only do this for your own name)
-      if (username.toLowerCase() === cfg.channel && paint && typeof paint.count === "number") {
-        // no-op: available for debugging if needed
-      }
-      if (paint?.painted && paint.css){
-        if (cfg.paintPriority === "paintFirst"){
+  if (cfg.paints === "1"){
+    const paint = await getPaintForUser(username, cfg, tags);
+    if (paint?.painted && paint.css){
+      if (cfg.paintPriority === "paintFirst"){
+        nameClass = "name paintText";
+        nameStyle = paint.css;
+      } else {
+        const map = getSpecialMap(cfg);
+        const hasSpecial = !!map[(username||"").toLowerCase()];
+        const hasTwitchColor = !!(tags?.color && /^#([0-9a-f]{6})$/i.test(tags.color));
+        if (!hasSpecial && !hasTwitchColor){
           nameClass = "name paintText";
           nameStyle = paint.css;
         } else {
-          const map = getSpecialMap(cfg);
-          const hasSpecial = !!map[(username||"").toLowerCase()];
-          const hasTwitchColor = !!(tags?.color && /^#([0-9a-f]{6})$/i.test(tags.color));
-          if (!hasSpecial && !hasTwitchColor){
-            nameClass = "name paintText";
-            nameStyle = paint.css;
-          } else {
-            nameStyle = `color:${fallbackColor};`;
-          }
+          nameStyle = `color:${fallbackColor};`;
         }
-      } else {
-        nameStyle = `color:${fallbackColor};`;
       }
     } else {
       nameStyle = `color:${fallbackColor};`;
@@ -780,7 +818,7 @@ async function addMessage({username, displayName, tags, message, cfg}){
   }, cfg.ttl);
 }
 
-/* ========= Stable Twitch IRC WS ========= */
+/* ===== stable twitch irc ws ===== */
 const WS_URL="wss://irc-ws.chat.twitch.tv:443";
 let ws=null, connToken=0;
 let reconnectTimer=null, backoffMs=2000;
@@ -831,9 +869,9 @@ async function connect(cfg){
     }
   }
 
-  const paintPart = (cfg.paints==="1") ? (credsPresent() ? "paints=on" : "paints=need-creds") : "paints=off";
-  setStatus(`connecting… #${cfg.channel} • ${sevenPart} • ${badgePart} • ${paintPart}`);
+  const paintPart = (cfg.paints==="1") ? "paints=on" : "paints=off";
 
+  setStatus(`connecting… #${cfg.channel} • ${sevenPart} • ${badgePart} • ${paintPart} • paintHits=${paintHits}`);
   ws=new WebSocket(WS_URL);
 
   ws.onopen=()=>{
@@ -860,8 +898,8 @@ async function connect(cfg){
           (cfg.badgeMode==="text") ? "badges=text" :
           (!credsPresent()) ? "badges=need-creds" :
           (badgeCache.loadedFor===cfg.channel) ? "badges=ok" : "badges=loading";
-        const paintLive = (cfg.paints==="1") ? (credsPresent() ? "paints=on" : "paints=need-creds") : "paints=off";
-        setStatus(`online ✅ #${cfg.channel} • 7TV=${sevenTvMap.size} • ${badgeLive} • ${paintLive}`);
+        const paintLive = (cfg.paints==="1") ? "paints=on" : "paints=off";
+        setStatus(`online ✅ #${cfg.channel} • 7TV=${sevenTvMap.size} • ${badgeLive} • ${paintLive} • paintHits=${paintHits}`);
       }
 
       if(line.includes(" PRIVMSG ")){
@@ -882,7 +920,7 @@ async function connect(cfg){
   ws.onclose=(e)=>{ if(token!==connToken) return; clearTimers(); detachAndClose(); setStatus(`closed ❌ code=${e.code} (retrying)`); scheduleReconnect(); };
 }
 
-/* ========= Menu wiring ========= */
+/* ===== menu wiring ===== */
 $("menuToggle").addEventListener("click", ()=> $("menu").classList.toggle("open"));
 $("copy").addEventListener("click", copyUrl);
 
@@ -908,6 +946,7 @@ $("clearCreds").addEventListener("click", ()=>{
   twitchIdCache.clear();
   paintCache.clear();
   paintInflight.clear();
+  paintHits = 0;
   setStatus("creds cleared ✅");
 });
 
@@ -923,18 +962,22 @@ $("reloadBadges").addEventListener("click", async ()=>{
   }
 });
 
-/* ========= Boot ========= */
+/* ===== boot ===== */
 const cfg0=getConfig();
 fillMenu(cfg0);
 applyCss(cfg0);
 fillCredInputs();
 
-// Preview
+// Prefill your 7TV user id if empty (from your provided profile)
+if (!cfg0.my7tv) {
+  $("my7tvUserId").value = "01G4HWTTYG000D3DGNAYJJPAB4";
+}
+
 addMessage({
   username:"chatbox",
   displayName:"Chatbox",
   tags:{ color:"#00e5ff", badges:{ broadcaster:"1" } },
-  message:"Paints fix loaded. If your name still not painted, it means cosmetics returned 0 paints for your twitch_id.",
+  message:"Paints: set My 7TV User ID, Save creds, enable paints, Apply. Then type in chat and your name should paint.",
   cfg: cfg0
 });
 
