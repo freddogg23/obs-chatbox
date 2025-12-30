@@ -1,10 +1,9 @@
-<!-- FULL FILE: index.html (with 7TV username paints) -->
 <!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>OBS Twitch Chatbox (Menu + Twitch Badges + 7TV + Paints)</title>
+<title>OBS Twitch Chatbox (7TV Emotes + 7TV Paints + Twitch Badges)</title>
 
 <style>
   :root{
@@ -25,919 +24,336 @@
     --fade-ms: 220;
   }
 
-  html,body{margin:0;height:100%;background:transparent;overflow:hidden;font-family:var(--font-family)}
-  #wrap{position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:flex-start;padding:12px;box-sizing:border-box}
-  #chat{width:100%;display:flex;flex-direction:column;gap:var(--gap);pointer-events:none}
-
-  .msg{
-    display:flex;gap:10px;background:var(--msg-bg);border-radius:var(--radius);
-    padding:calc(var(--padY)*1px) calc(var(--padX)*1px);
-    box-shadow:var(--shadow);
-    backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
-    opacity:0;transform:translateY(10px);
-    transition:opacity var(--fade-ms)ms ease,transform var(--fade-ms)ms ease;
-  }
-  .msg.show{opacity:1;transform:translateY(0)}
-
-  .left{display:flex;flex-direction:column;gap:6px;min-width:0;width:100%}
-  .topline{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
-
-  .badges{display:flex;gap:4px;align-items:center}
-  img.badgeImg{
-    width:18px;height:18px;border-radius:4px;vertical-align:-4px;
-    filter: drop-shadow(0 1px 4px rgba(0,0,0,0.35));
-  }
-  .badgeText{
-    font-size:12px;line-height:1;padding:2px 6px;border-radius:999px;
-    background:rgba(255,255,255,0.14);
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
+  html,body{
+    margin:0;
+    height:100%;
+    background:transparent;
+    overflow:hidden;
+    font-family:var(--font-family);
   }
 
-  .name{
-    font-size:var(--font-size);line-height:var(--line-height);
-    font-weight:800;text-shadow:var(--text-shadow);
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%;
+  #wrap{
+    position:absolute;
+    inset:0;
+    display:flex;
+    align-items:flex-end;
+    justify-content:flex-start;
+    padding:12px;
+    box-sizing:border-box;
   }
 
-  /* Paint styling: apply via inline style and this class for safety */
-  .paintText{
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent !important;
-  }
-
-  .text{
-    font-size:var(--font-size);line-height:var(--line-height);
-    font-weight:600;text-shadow:var(--text-shadow);
-    word-break:break-word;overflow-wrap:anywhere;min-width:0;
-  }
-
-  img.emote{
-    width: var(--emote-size);
-    height: var(--emote-size);
-    vertical-align: -8px;
-    margin: 0 2px;
-  }
-
-  #pill{
-    position:absolute;left:10px;top:10px;z-index:40;
-    font-size:12px;padding:8px 10px;border-radius:999px;
-    background:rgba(0,0,0,0.45);color:rgba(255,255,255,0.95);
-    box-shadow:0 10px 28px rgba(0,0,0,0.35);
-    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-    max-width:calc(100% - 20px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  #chat{
+    width:100%;
+    display:flex;
+    flex-direction:column;
+    gap:var(--gap);
     pointer-events:none;
   }
 
-  /* Menu */
+  .msg{
+    display:flex;
+    gap:10px;
+    background:var(--msg-bg);
+    border-radius:var(--radius);
+    padding:calc(var(--padY)*1px) calc(var(--padX)*1px);
+    box-shadow:var(--shadow);
+    backdrop-filter:blur(6px);
+    -webkit-backdrop-filter:blur(6px);
+    opacity:0;
+    transform:translateY(10px);
+    transition:opacity var(--fade-ms)ms ease,transform var(--fade-ms)ms ease;
+  }
+
+  .msg.show{
+    opacity:1;
+    transform:translateY(0);
+  }
+
+  .left{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    min-width:0;
+    width:100%;
+  }
+
+  .topline{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    flex-wrap:wrap;
+    min-width:0;
+  }
+
+  .badges{
+    display:flex;
+    gap:4px;
+    align-items:center;
+  }
+
+  img.badgeImg{
+    width:18px;
+    height:18px;
+    border-radius:4px;
+    vertical-align:-4px;
+    filter:drop-shadow(0 1px 4px rgba(0,0,0,.35));
+  }
+
+  .badgeText{
+    font-size:12px;
+    line-height:1;
+    padding:2px 6px;
+    border-radius:999px;
+    background:rgba(255,255,255,.14);
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);
+  }
+
+  .name{
+    font-size:var(--font-size);
+    line-height:var(--line-height);
+    font-weight:800;
+    text-shadow:var(--text-shadow);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    max-width:55%;
+  }
+
+  /* Needed for paints */
+  .paintText{
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent !important;
+  }
+
+  .text{
+    font-size:var(--font-size);
+    line-height:var(--line-height);
+    font-weight:600;
+    text-shadow:var(--text-shadow);
+    word-break:break-word;
+    overflow-wrap:anywhere;
+    min-width:0;
+  }
+
+  img.emote{
+    width:var(--emote-size);
+    height:var(--emote-size);
+    vertical-align:-8px;
+    margin:0 2px;
+  }
+
+  #pill{
+    position:absolute;
+    left:10px;
+    top:10px;
+    z-index:40;
+    font-size:12px;
+    padding:8px 10px;
+    border-radius:999px;
+    background:rgba(0,0,0,.45);
+    color:rgba(255,255,255,.95);
+    box-shadow:0 10px 28px rgba(0,0,0,.35);
+    backdrop-filter:blur(10px);
+    -webkit-backdrop-filter:blur(10px);
+    white-space:nowrap;
+    pointer-events:none;
+  }
+
   #menuToggle{
-    position:absolute;top:10px;right:10px;z-index:50;
-    width:44px;height:44px;border-radius:14px;border:0;
-    background:rgba(0,0,0,0.45);color:#fff;cursor:pointer;
-    box-shadow:0 10px 28px rgba(0,0,0,0.45);
-    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    position:absolute;
+    top:10px;
+    right:10px;
+    z-index:50;
+    width:44px;
+    height:44px;
+    border-radius:14px;
+    border:0;
+    background:rgba(0,0,0,.45);
+    color:#fff;
+    cursor:pointer;
+    box-shadow:0 10px 28px rgba(0,0,0,.45);
   }
+
   #menu{
-    position:absolute;top:64px;right:10px;z-index:50;
-    width:420px;max-height:calc(100% - 80px);overflow:auto;
-    border-radius:18px;background:rgba(12,12,12,0.80);
-    color:rgba(255,255,255,0.95);
-    box-shadow:0 18px 50px rgba(0,0,0,0.55);
-    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-    padding:14px;display:none;pointer-events:auto;
+    position:absolute;
+    top:64px;
+    right:10px;
+    z-index:50;
+    width:420px;
+    max-height:calc(100% - 80px);
+    overflow:auto;
+    border-radius:18px;
+    background:rgba(12,12,12,.80);
+    color:rgba(255,255,255,.95);
+    box-shadow:0 18px 50px rgba(0,0,0,.55);
+    padding:14px;
+    display:none;
   }
-  #menu.open{display:block}
-  .mTitle{font-weight:900;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
-  .mRow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
-  .mRow.full{grid-template-columns:1fr}
-  label{font-size:12px;opacity:.9;display:block;margin-bottom:6px}
+
+  #menu.open{ display:block; }
+
+  label{ font-size:12px; opacity:.9; display:block; margin-bottom:6px; }
   input,select,textarea{
-    width:100%;box-sizing:border-box;border-radius:12px;border:1px solid rgba(255,255,255,0.12);
-    background:rgba(255,255,255,0.06);color:#fff;padding:10px;outline:none;
+    width:100%;
+    box-sizing:border-box;
+    border-radius:12px;
+    border:1px solid rgba(255,255,255,.12);
+    background:rgba(255,255,255,.06);
+    color:#fff;
+    padding:10px;
   }
-  input[type="color"]{padding:0;height:42px}
-  textarea{min-height:80px;resize:vertical;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.3}
-  .btnRow{display:flex;gap:10px;margin-top:10px}
+
+  textarea{
+    min-height:70px;
+    resize:vertical;
+    font-family:monospace;
+    font-size:12px;
+  }
+
+  .btnRow{ display:flex; gap:10px; margin-top:10px; }
   .btn{
-    flex:1;cursor:pointer;border:0;border-radius:14px;padding:10px 12px;
-    font-weight:900;color:#fff;background:rgba(255,255,255,0.12);
+    flex:1;
+    border:0;
+    border-radius:14px;
+    padding:10px;
+    font-weight:800;
+    background:rgba(255,255,255,.12);
+    color:#fff;
+    cursor:pointer;
   }
-  .btn:hover{background:rgba(255,255,255,0.18)}
-  .hint{font-size:12px;opacity:.82;line-height:1.25;margin-top:8px}
-  .divider{height:1px;background:rgba(255,255,255,0.10);margin:12px 0}
-  .warn{font-size:12px;opacity:.85;line-height:1.25;background:rgba(255,196,0,0.10);border:1px solid rgba(255,196,0,0.15);padding:10px;border-radius:12px}
 </style>
 </head>
 
 <body>
-  <div id="wrap"><div id="chat"></div></div>
-  <div id="pill">starting…</div>
+<div id="wrap"><div id="chat"></div></div>
+<div id="pill">starting…</div>
 
-  <button id="menuToggle" title="Settings">⚙️</button>
+<button id="menuToggle">⚙️</button>
 
-  <div id="menu">
-    <div class="mTitle">
-      <div>Chatbox Settings</div>
-      <div id="status" style="font-size:12px;opacity:.85;">idle</div>
-    </div>
+<div id="menu">
+  <label>Channel</label>
+  <input id="channel">
 
-    <div class="warn">
-      <b>Badges/Paints need creds:</b> In OBS use <b>Interact</b> → paste Client ID + Token → Save creds.
-      Tokens are stored in <b>sessionStorage</b> only (not in URL).
-    </div>
+  <label>Enable 7TV</label>
+  <select id="enable7tv"><option value="1">Yes</option><option value="0">No</option></select>
 
-    <div class="mRow full">
-      <div><label>Channel (no @)</label><input id="channel"></div>
-    </div>
+  <label>7TV set</label>
+  <select id="sevenTvMode">
+    <option value="both">Both</option>
+    <option value="global">Global</option>
+    <option value="channel">Channel</option>
+  </select>
 
-    <div class="mRow">
-      <div><label>Message text color</label><input id="textColor" type="color"></div>
-      <div><label>Background opacity</label><input id="bgOpacity" type="number" min="0" max="1" step="0.05"></div>
-    </div>
+  <label>Enable 7TV paints</label>
+  <select id="enablePaints"><option value="1">Yes</option><option value="0">No</option></select>
 
-    <div class="mRow">
-      <div><label>Font size (px)</label><input id="fontSize" type="number" min="10" max="90" step="1"></div>
-      <div><label>Emote size (px)</label><input id="emoteSize" type="number" min="12" max="96" step="1"></div>
-    </div>
+  <label>Twitch Client ID</label>
+  <input id="twitchClientId">
 
-    <div class="mRow">
-      <div><label>Max messages</label><input id="maxMessages" type="number" min="1" max="50" step="1"></div>
-      <div><label>Message lifetime (ms)</label><input id="ttlMs" type="number" min="2000" max="600000" step="500"></div>
-    </div>
+  <label>Twitch App Access Token</label>
+  <input id="twitchToken">
 
-    <div class="mRow">
-      <div><label>Show badges</label>
-        <select id="showBadges"><option value="1">Yes</option><option value="0">No</option></select>
-      </div>
-      <div><label>Badge mode</label>
-        <select id="badgeMode">
-          <option value="twitch">Twitch images (needs creds)</option>
-          <option value="text">Text (BC/MOD/VIP/SUB)</option>
-        </select>
-      </div>
-    </div>
-
-    <div class="mRow">
-      <div><label>Enable 7TV</label>
-        <select id="enable7tv"><option value="1">Yes</option><option value="0">No</option></select>
-      </div>
-      <div><label>7TV set</label>
-        <select id="sevenTvMode">
-          <option value="both">Both (recommended)</option>
-          <option value="channel">Channel</option>
-          <option value="global">Global</option>
-        </select>
-      </div>
-    </div>
-
-    <div class="mRow">
-      <div><label>Enable 7TV paints</label>
-        <select id="enablePaints"><option value="1">Yes</option><option value="0">No</option></select>
-      </div>
-      <div><label>Paint priority</label>
-        <select id="paintPriority">
-          <option value="paintFirst">Paint overrides all</option>
-          <option value="twitchFirst">Twitch/special color if no paint</option>
-        </select>
-      </div>
-    </div>
-
-    <div class="mRow full">
-      <div>
-        <label>Special name colors JSON (optional)</label>
-        <textarea id="specialColors" placeholder='{"someuser":"#ff00ff"}'></textarea>
-        <div class="hint">Used only when no paint (or if Paint priority is “Twitch first”).</div>
-      </div>
-    </div>
-
-    <div class="divider"></div>
-
-    <div class="mRow">
-      <div>
-        <label>Twitch Client ID</label>
-        <input id="twitchClientId" placeholder="paste client id">
-      </div>
-      <div>
-        <label>Twitch App Access Token</label>
-        <input id="twitchToken" placeholder="paste access token">
-      </div>
-    </div>
-
-    <div class="btnRow">
-      <button class="btn" id="saveCreds">Save creds</button>
-      <button class="btn" id="clearCreds">Clear creds</button>
-    </div>
-
-    <div class="btnRow">
-      <button class="btn" id="reloadBadges">Reload badges</button>
-      <button class="btn" id="copy">Copy URL</button>
-    </div>
-
-    <div class="btnRow">
-      <button class="btn" id="apply">Apply</button>
-      <button class="btn" id="reset">Reset</button>
-    </div>
-
-    <div class="hint">
-      Paint status is automatic. If a user has a 7TV paint, their name becomes gradient/painted.
-    </div>
+  <div class="btnRow">
+    <button class="btn" id="saveCreds">Save creds</button>
+    <button class="btn" id="apply">Apply</button>
   </div>
+</div>
 
 <script>
-  // ==========================
-  // Utilities
-  // ==========================
-  const $ = (id)=>document.getElementById(id);
-  const chatEl = $("chat");
-  const pill = $("pill");
-  const statusEl = $("status");
-  const qs = new URLSearchParams(location.search);
-
-  const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
-  const esc=(s)=>(s??"").toString()
-    .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;").replaceAll("'","&#039;");
-
-  function setStatus(t){
-    statusEl.textContent = t;
-    pill.textContent = t;
-    console.log(t);
-  }
-
-  // ==========================
-  // Config
-  // ==========================
-  const DEFAULTS = {
-    channel: (qs.get("channel") || "freddogg23").replace(/^@/,"").toLowerCase(),
-    text: (qs.get("text") || "ffffff").replace("#",""),
-    bg: parseFloat(qs.get("bg") ?? "0.35"),
-    size: parseInt(qs.get("size") ?? "24", 10),
-    emote: parseInt(qs.get("emote") ?? "34", 10),
-    ttl: parseInt(qs.get("ttl") ?? "16000", 10),
-    max: parseInt(qs.get("max") ?? "10", 10),
-    badges: (qs.get("badges") ?? "1"),
-    badgeMode: (qs.get("badgeMode") ?? "twitch"),
-    seven: (qs.get("seven") ?? "1"),
-    sevenMode: (qs.get("sevenMode") ?? "both"),
-    paints: (qs.get("paints") ?? "1"),
-    paintPriority: (qs.get("paintPriority") ?? "paintFirst"),
-    special: (qs.get("special") ?? "")
-  };
-
-  function parseHash(){
-    const h = (location.hash || "").replace(/^#/, "");
-    const out = {};
-    if (!h) return out;
-    for (const part of h.split("&")){
-      const [k,v] = part.split("=");
-      if (!k) continue;
-      out[decodeURIComponent(k)] = decodeURIComponent(v ?? "");
-    }
-    return out;
-  }
-
-  function getConfig(){
-    const h = parseHash();
-    const cfg = {...DEFAULTS, ...h};
-
-    cfg.channel = (cfg.channel || "freddogg23").replace(/^@/,"").toLowerCase();
-    const hex = (cfg.text || "ffffff").replace("#","").trim();
-    cfg.text = /^[0-9a-f]{6}$/i.test(hex) ? hex.toLowerCase() : "ffffff";
-
-    cfg.bg = clamp(parseFloat(cfg.bg ?? 0.35), 0, 1);
-    cfg.size = clamp(parseInt(cfg.size ?? 24,10) || 24, 10, 90);
-    cfg.emote = clamp(parseInt(cfg.emote ?? 34,10) || 34, 12, 96);
-    cfg.ttl = clamp(parseInt(cfg.ttl ?? 16000,10) || 16000, 2000, 600000);
-    cfg.max = clamp(parseInt(cfg.max ?? 10,10) || 10, 1, 50);
-
-    cfg.badges = (cfg.badges === "0" ? "0" : "1");
-    cfg.badgeMode = (cfg.badgeMode === "text" ? "text" : "twitch");
-
-    cfg.seven = (cfg.seven === "0" ? "0" : "1");
-    cfg.sevenMode = (cfg.sevenMode === "global" || cfg.sevenMode === "channel") ? cfg.sevenMode : "both";
-
-    cfg.paints = (cfg.paints === "0" ? "0" : "1");
-    cfg.paintPriority = (cfg.paintPriority === "twitchFirst") ? "twitchFirst" : "paintFirst";
-
-    cfg.special = cfg.special || "";
-    return cfg;
-  }
-
-  function applyCss(cfg){
-    document.documentElement.style.setProperty("--msg-bg", `rgba(0,0,0,${cfg.bg})`);
-    document.documentElement.style.setProperty("--font-size", `${cfg.size}px`);
-    document.documentElement.style.setProperty("--emote-size", `${cfg.emote}px`);
-  }
-
-  function fillMenu(cfg){
-    $("channel").value = cfg.channel;
-    $("textColor").value = "#" + cfg.text;
-    $("bgOpacity").value = cfg.bg;
-    $("fontSize").value = cfg.size;
-    $("emoteSize").value = cfg.emote;
-    $("maxMessages").value = cfg.max;
-    $("ttlMs").value = cfg.ttl;
-    $("showBadges").value = cfg.badges;
-    $("badgeMode").value = cfg.badgeMode;
-    $("enable7tv").value = cfg.seven;
-    $("sevenTvMode").value = cfg.sevenMode;
-    $("enablePaints").value = cfg.paints;
-    $("paintPriority").value = cfg.paintPriority;
-    $("specialColors").value = cfg.special || "";
-  }
-
-  function readMenu(){
-    const hex = ($("textColor").value || "#ffffff").replace("#","");
-    const specialRaw = ($("specialColors").value || "").trim();
-    return {
-      channel: ($("channel").value || "freddogg23").trim().replace(/^@/,"").toLowerCase(),
-      text: /^[0-9a-f]{6}$/i.test(hex) ? hex.toLowerCase() : "ffffff",
-      bg: clamp(parseFloat($("bgOpacity").value ?? "0.35"), 0, 1),
-      size: clamp(parseInt($("fontSize").value ?? "24",10) || 24, 10, 90),
-      emote: clamp(parseInt($("emoteSize").value ?? "34",10) || 34, 12, 96),
-      max: clamp(parseInt($("maxMessages").value ?? "10",10) || 10, 1, 50),
-      ttl: clamp(parseInt($("ttlMs").value ?? "16000",10) || 16000, 2000, 600000),
-      badges: $("showBadges").value === "0" ? "0" : "1",
-      badgeMode: $("badgeMode").value === "text" ? "text" : "twitch",
-      seven: $("enable7tv").value === "0" ? "0" : "1",
-      sevenMode: $("sevenTvMode").value,
-      paints: $("enablePaints").value === "0" ? "0" : "1",
-      paintPriority: $("paintPriority").value,
-      special: specialRaw
-    };
-  }
-
-  function writeHash(cfg){
-    const parts = [];
-    const put = (k,v)=> parts.push(encodeURIComponent(k) + "=" + encodeURIComponent(String(v)));
-    put("channel", cfg.channel);
-    put("text", cfg.text);
-    put("bg", cfg.bg);
-    put("size", cfg.size);
-    put("emote", cfg.emote);
-    put("max", cfg.max);
-    put("ttl", cfg.ttl);
-    put("badges", cfg.badges);
-    put("badgeMode", cfg.badgeMode);
-    put("seven", cfg.seven);
-    put("sevenMode", cfg.sevenMode);
-    put("paints", cfg.paints);
-    put("paintPriority", cfg.paintPriority);
-    if ((cfg.special || "").trim()) put("special", cfg.special.trim());
-    location.hash = parts.join("&");
-  }
-
-  async function copyUrl(){
-    const url = location.origin + location.pathname + location.search + location.hash;
-    try{ await navigator.clipboard.writeText(url); setStatus("copied URL ✅"); }
-    catch(e){ prompt("Copy this URL:", url); }
-  }
-
-  // ==========================
-  // Session-only Twitch creds
-  // ==========================
-  const CREDS_KEY = "twitch_creds_session_v1";
-  function getCreds(){ try{ return JSON.parse(sessionStorage.getItem(CREDS_KEY)||"null"); }catch{ return null; } }
-  function setCreds(clientId, token){ sessionStorage.setItem(CREDS_KEY, JSON.stringify({clientId, token})); }
-  function clearCreds(){ sessionStorage.removeItem(CREDS_KEY); }
-  function credsPresent(){ const c=getCreds(); return !!(c?.clientId && c?.token); }
-  function fillCredInputs(){ const c=getCreds(); $("twitchClientId").value=c?.clientId||""; $("twitchToken").value=c?.token||""; }
-
-  // ==========================
-  // Twitch API helpers + badges + userId cache
-  // ==========================
-  let badgeCache = { global:new Map(), channel:new Map(), loadedFor:null };
-
-  // login->twitchId cache (in-memory)
-  const twitchIdCache = new Map(); // login -> id
-  const twitchIdInflight = new Map(); // login -> Promise
-
-  async function twitchFetch(url){
-    const c=getCreds();
-    if (!c?.clientId || !c?.token) throw new Error("No creds");
-    const r = await fetch(url, {
-      headers: { "Client-ID": c.clientId, "Authorization": `Bearer ${c.token}` },
-      cache: "no-store"
-    });
-    if (!r.ok){
-      const t=await r.text().catch(()=> "");
-      throw new Error(`Twitch ${r.status}: ${t||r.statusText}`);
-    }
-    return await r.json();
-  }
-
-  async function getTwitchIdByLogin(login){
-    login = (login||"").toLowerCase();
-    if (!login) return null;
-    if (twitchIdCache.has(login)) return twitchIdCache.get(login);
-
-    if (twitchIdInflight.has(login)) return await twitchIdInflight.get(login);
-
-    const p = (async ()=>{
-      const data = await twitchFetch(`https://api.twitch.tv/helix/users?login=${encodeURIComponent(login)}`);
-      const id = data?.data?.[0]?.id || null;
-      if (id) twitchIdCache.set(login, id);
-      twitchIdInflight.delete(login);
-      return id;
-    })().catch(err=>{
-      twitchIdInflight.delete(login);
-      return null;
-    });
-
-    twitchIdInflight.set(login, p);
-    return await p;
-  }
-
-  async function getBroadcasterId(login){
-    const id = await getTwitchIdByLogin(login);
-    if (!id) throw new Error("No broadcaster id");
-    return id;
-  }
-
-  function ingestBadges(apiData, target){
-    for (const set of (apiData?.data||[])){
-      const verMap = new Map();
-      for (const v of (set.versions||[])){
-        verMap.set(v.id, v.image_url_2x || v.image_url_1x || v.image_url_4x);
-      }
-      target.set(set.set_id, verMap);
-    }
-  }
-
-  async function loadBadgesForChannel(login){
-    const broadcasterId = await getBroadcasterId(login);
-    const [g,c] = await Promise.all([
-      twitchFetch("https://api.twitch.tv/helix/chat/badges/global"),
-      twitchFetch(`https://api.twitch.tv/helix/chat/badges?broadcaster_id=${encodeURIComponent(broadcasterId)}`)
-    ]);
-    badgeCache.global=new Map(); badgeCache.channel=new Map();
-    ingestBadges(g, badgeCache.global);
-    ingestBadges(c, badgeCache.channel);
-    badgeCache.loadedFor=login;
-    return {globalSets:badgeCache.global.size, channelSets:badgeCache.channel.size, broadcasterId};
-  }
-
-  function getBadgeImgUrlsFromTags(tags){
-    const badges = tags?.badges || {};
-    const urls=[];
-    for (const [setId, version] of Object.entries(badges)){
-      const chan=badgeCache.channel.get(setId);
-      const glob=badgeCache.global.get(setId);
-      const url = chan?.get(version) || glob?.get(version) || chan?.get("1") || glob?.get("1");
-      if (url) urls.push({setId, version, url});
-    }
-    return urls;
-  }
-
-  // ==========================
-  // 7TV emotes + 7TV paints
-  // ==========================
-  const sevenTvMap=new Map();
-  let sevenTvReady=false;
-
-  // paint cache: twitchId -> { cssText, isPainted }
-  const paintCache = new Map();
-  const paintInflight = new Map();
-
-  async function fetchJson(url){
-    const r=await fetch(url,{cache:"no-store"});
-    if(!r.ok) throw new Error(`${r.status} ${r.statusText}`);
-    return await r.json();
-  }
-
-  function pickSevenTvUrl(emote){
-    const host=emote?.data?.host;
-    if(!host?.url || !Array.isArray(host.files)) return null;
-    const names=host.files.map(f=>f.name);
-    const pick = names.includes("4x.webp")?"4x.webp":
-                 names.includes("3x.webp")?"3x.webp":
-                 names.includes("2x.webp")?"2x.webp":
-                 names.includes("1x.webp")?"1x.webp":
-                 names[0];
-    return `https:${host.url}/${pick}`;
-  }
-
-  async function load7tv(login, mode){
-    sevenTvMap.clear();
-    sevenTvReady=false;
-
-    const wantsGlobal = (mode==="global"||mode==="both");
-    const wantsChannel= (mode==="channel"||mode==="both");
-
-    let globalCount=0;
-    let channelCount=0;
-
-    try{
-      if(wantsGlobal){
-        const global=await fetchJson("https://7tv.io/v3/emote-sets/global");
-        for(const e of (global?.emotes||[])){
-          const url=pickSevenTvUrl(e);
-          if(e?.name && url){ sevenTvMap.set(e.name,url); globalCount++; }
-        }
-      }
-
-      if(wantsChannel){
-        let twitchId=null;
-        if (credsPresent()){
-          twitchId = await getBroadcasterId(login);
-        }
-        if(twitchId){
-          const user=await fetchJson(`https://7tv.io/v3/users/twitch/${encodeURIComponent(twitchId)}`);
-          const emotes=user?.emote_set?.emotes||[];
-          for(const e of emotes){
-            const url=pickSevenTvUrl(e);
-            if(e?.name && url){ sevenTvMap.set(e.name,url); channelCount++; }
-          }
-        }
-      }
-
-      sevenTvReady = sevenTvMap.size>0;
-      return {ok:sevenTvReady, count:sevenTvMap.size, globalCount, channelCount};
-    }catch(err){
-      sevenTvReady=false;
-      return {ok:false, count:0, err:String(err?.message||err), globalCount, channelCount};
-    }
-  }
-
-  function render7tvTokens(text,cfg){
-    if(cfg.seven!=="1"||!sevenTvReady||sevenTvMap.size===0) return esc(text);
-    const parts=text.split(/(\s+)/);
-    return parts.map(tok=>{
-      if(/^\s+$/.test(tok)) return tok;
-      const url=sevenTvMap.get(tok);
-      if(!url) return esc(tok);
-      return `<img class="emote" alt="${esc(tok)}" src="${url}" loading="lazy" />`;
-    }).join("");
-  }
-
-  // ---- Paint extraction ----
-  // 7TV user object may contain "paint" or "style.paint" depending on API revisions.
-  // We'll try a few shapes and build CSS accordingly.
-  function buildPaintCssFromUser(userObj){
-    const paint =
-      userObj?.style?.paint ||
-      userObj?.paint ||
-      null;
-
-    if (!paint) return null;
-
-    // Common 7TV paint shapes have "stops" with colors and positions.
-    // We'll build a linear-gradient by default.
-    const stops = paint?.stops || paint?.gradient?.stops || null;
-    const angle = paint?.angle ?? paint?.gradient?.angle ?? 90;
-
-    if (Array.isArray(stops) && stops.length >= 2){
-      // stop items can be {color, at} or {color, position}
-      const parts = stops.map(s=>{
-        const c = s.color || s.colour || "#ffffff";
-        const at = (s.at ?? s.position ?? null);
-        return at == null ? `${c}` : `${c} ${Math.round(at*100)}%`;
-      });
-      return `background-image: linear-gradient(${angle}deg, ${parts.join(", ")});`;
-    }
-
-    // Fallback: solid color
-    const c = paint?.color || paint?.colour;
-    if (c) return `background-image: none; color: ${c};`;
-
-    return null;
-  }
-
-  async function get7tvPaintForTwitchId(twitchId){
-    if (!twitchId) return null;
-    if (paintCache.has(twitchId)) return paintCache.get(twitchId);
-    if (paintInflight.has(twitchId)) return await paintInflight.get(twitchId);
-
-    const p = (async ()=>{
-      try{
-        const user = await fetchJson(`https://7tv.io/v3/users/twitch/${encodeURIComponent(twitchId)}`);
-        const css = buildPaintCssFromUser(user);
-        const result = css ? { painted:true, css } : { painted:false, css:null };
-        paintCache.set(twitchId, result);
-        paintInflight.delete(twitchId);
-        return result;
-      }catch(e){
-        const result = { painted:false, css:null };
-        paintCache.set(twitchId, result);
-        paintInflight.delete(twitchId);
-        return result;
-      }
-    })();
-
-    paintInflight.set(twitchId, p);
-    return await p;
-  }
-
-  // ==========================
-  // IRC parsing + name fallback colors
-  // ==========================
-  function decodeTag(v){
-    return (v||"").replaceAll("\\:", ";").replaceAll("\\s"," ").replaceAll("\\\\","\\").replaceAll("\\r","\r").replaceAll("\\n","\n");
-  }
-  function parseTags(tagPart){
-    const tags={}; if(!tagPart) return tags;
-    for(const pair of tagPart.split(";")){
-      const i=pair.indexOf("=");
-      if(i===-1) continue;
-      tags[pair.slice(0,i)] = decodeTag(pair.slice(i+1));
-    }
-    return tags;
-  }
-  function parsePrivmsg(line){
-    let tags={}; let rest=line;
-    if(rest.startsWith("@")){
-      const sp=rest.indexOf(" ");
-      tags=parseTags(rest.slice(1,sp));
-      rest=rest.slice(sp+1);
-    }
-    const m=rest.match(/^:([^ ]+)\s+PRIVMSG\s+#[^ ]+\s+:(.*)$/);
-    if(!m) return null;
-    const username=(m[1].split("!")[0])||tags.login||"unknown";
-    return {tags, username, message:m[2]??""};
-  }
-  function parseBadges(badgesStr){
-    const out={}; if(!badgesStr) return out;
-    for(const p of badgesStr.split(",")){
-      const [k,v]=p.split("/");
-      if(k) out[k]=v||"1";
-    }
-    return out;
-  }
-  function getSpecialMap(cfg){
-    if(!cfg.special) return {};
-    try{ return JSON.parse(cfg.special)||{}; }catch{ return {}; }
-  }
-  function pickFallbackNameColor(username,tags,cfg){
-    const map=getSpecialMap(cfg);
-    const u=(username||"").toLowerCase();
-    if(map[u]) return map[u];
-    const c=tags?.color;
-    if(c && /^#([0-9a-f]{6})$/i.test(c)) return c;
-    return "#a7ffef";
-  }
-
-  // ==========================
-  // Badges rendering
-  // ==========================
-  function roleTextBadges(tags){
-    const b=tags?.badges||{};
-    const list=[];
-    if(b.broadcaster) list.push(["broadcaster","BC"]);
-    if(b.moderator) list.push(["moderator","MOD"]);
-    if(b.vip) list.push(["vip","VIP"]);
-    if(b.subscriber||b.founder) list.push(["subscriber","SUB"]);
-    return list;
-  }
-  function buildBadgesHtml(tags,cfg){
-    if(cfg.badges!=="1") return "";
-
-    const canTwitch = (cfg.badgeMode==="twitch" && credsPresent() && badgeCache.loadedFor===cfg.channel);
-
-    if(cfg.badgeMode==="text" || !canTwitch){
-      const list=roleTextBadges(tags);
-      if(!list.length) return "";
-      return `<span class="badges">` + list.map(([k,t])=>`<span class="badgeText" title="${k}">${t}</span>`).join("") + `</span>`;
-    }
-
-    const imgs=getBadgeImgUrlsFromTags(tags);
-    if(!imgs.length) return "";
-    return `<span class="badges">` + imgs.map(b=>`<img class="badgeImg" src="${b.url}" alt="${esc(b.setId)}" title="${esc(b.setId+"/"+b.version)}" loading="lazy" />`).join("") + `</span>`;
-  }
-
-  // ==========================
-  // Render message (with paints)
-  // ==========================
-  async function addMessage({username, displayName, tags, message, cfg}){
-    while(chatEl.children.length>=cfg.max) chatEl.removeChild(chatEl.firstChild);
-
-    const textColor="#"+cfg.text;
-    const badgesHtml=buildBadgesHtml(tags,cfg);
-    const bodyHtml=render7tvTokens(message,cfg);
-
-    // Determine name rendering (paint vs fallback)
-    let nameStyle = "";
-    let nameClass = "name";
-    let fallbackColor = pickFallbackNameColor(username, tags, cfg);
-
-    if (cfg.paints === "1" && credsPresent()){
-      const twitchId = await getTwitchIdByLogin(username);
-      if (twitchId){
-        const paint = await get7tvPaintForTwitchId(twitchId);
-        if (paint?.painted && paint.css){
-          // paint wins unless user chose twitchFirst and has special/twitch color
-          if (cfg.paintPriority === "paintFirst"){
-            nameClass = "name paintText";
-            nameStyle = paint.css;
-          } else {
-            // twitchFirst: only apply paint if no twitch/special color exists
-            // We treat fallbackColor as existing always; so implement as "paintFirst" unless special map is empty and tags.color missing
-            const map = getSpecialMap(cfg);
-            const hasSpecial = !!map[(username||"").toLowerCase()];
-            const hasTwitchColor = !!(tags?.color && /^#([0-9a-f]{6})$/i.test(tags.color));
-            if (!hasSpecial && !hasTwitchColor){
-              nameClass = "name paintText";
-              nameStyle = paint.css;
-            } else {
-              nameStyle = `color:${fallbackColor};`;
-            }
-          }
-        } else {
-          nameStyle = `color:${fallbackColor};`;
-        }
-      } else {
-        nameStyle = `color:${fallbackColor};`;
-      }
-    } else {
-      nameStyle = `color:${fallbackColor};`;
-    }
-
-    const el=document.createElement("div");
-    el.className="msg";
-    el.innerHTML=`
-      <div class="left">
-        <div class="topline">
-          ${badgesHtml}
-          <div class="${nameClass}" style="${nameStyle}">${esc(displayName||username)}</div>
-        </div>
-        <div class="text" style="color:${textColor}">${bodyHtml}</div>
-      </div>`;
-    chatEl.appendChild(el);
-    requestAnimationFrame(()=>el.classList.add("show"));
-
-    setTimeout(()=>{
-      el.classList.remove("show");
-      setTimeout(()=>{ if(el.parentNode) el.parentNode.removeChild(el); },260);
-    }, cfg.ttl);
-  }
-
-  // ==========================
-  // Stable Twitch IRC WS
-  // ==========================
-  const WS_URL="wss://irc-ws.chat.twitch.tv:443";
-  let ws=null, connToken=0;
-  let reconnectTimer=null, backoffMs=2000;
-  const BACKOFF_MAX=16000;
-  let keepAliveTimer=null;
-
-  function clearTimers(){
-    if(reconnectTimer){clearTimeout(reconnectTimer);reconnectTimer=null;}
-    if(keepAliveTimer){clearInterval(keepAliveTimer);keepAliveTimer=null;}
-  }
-  function detachAndClose(){
-    if(!ws) return;
-    try{ ws.onopen=ws.onmessage=ws.onerror=ws.onclose=null; ws.close(); }catch{}
-    ws=null;
-  }
-  function scheduleReconnect(){
-    clearTimers();
-    const wait=backoffMs;
-    backoffMs=Math.min(BACKOFF_MAX, backoffMs*2);
-    setStatus(`reconnecting in ${Math.round(wait/1000)}s…`);
-    reconnectTimer=setTimeout(()=>connect(getConfig()), wait);
-  }
-
-  async function connect(cfg){
-    connToken++; const token=connToken;
-    clearTimers(); detachAndClose();
-    applyCss(cfg);
-
-    // Load 7TV emotes
-    let sevenPart="7TV=off";
-    if(cfg.seven==="1"){
-      setStatus("loading 7TV…");
-      const r=await load7tv(cfg.channel, cfg.sevenMode);
-      if(token!==connToken) return;
-      sevenPart = r.ok ? `7TV=${r.count} (g:${r.globalCount} c:${r.channelCount})` : `7TV=0`;
-    }
-
-    // Badges load
-    let badgePart = (cfg.badges!=="1") ? "badges=off" :
-                    (cfg.badgeMode==="text") ? "badges=text" :
-                    (!credsPresent()) ? "badges=need-creds" : "badges=loading";
-    if(cfg.badges==="1" && cfg.badgeMode==="twitch" && credsPresent()){
-      try{
-        setStatus("loading badges…");
-        await loadBadgesForChannel(cfg.channel);
-        if(token!==connToken) return;
-        badgePart="badges=ok";
-      }catch{
-        badgePart="badges=fail";
-      }
-    }
-
-    // Paints status
-    const paintPart = (cfg.paints==="1") ? (credsPresent() ? "paints=on" : "paints=need-creds") : "paints=off";
-
-    setStatus(`connecting… #${cfg.channel} • ${sevenPart} • ${badgePart} • ${paintPart}`);
-    ws=new WebSocket(WS_URL);
-
-    ws.onopen=()=>{
-      if(token!==connToken) return;
-      backoffMs=2000;
-      ws.send("CAP REQ :twitch.tv/tags twitch.tv/commands twitch.tv/membership");
-      ws.send("PASS SCHMOOPIIE");
-      ws.send("NICK justinfan" + Math.floor(1000+Math.random()*9000));
-      ws.send(`JOIN #${cfg.channel}`);
-      keepAliveTimer=setInterval(()=>{
-        try{ if(ws && ws.readyState===WebSocket.OPEN) ws.send("PING :keepalive"); }catch{}
-      }, 45000);
-    };
-
-    ws.onmessage=(ev)=>{
-      if(token!==connToken) return;
-      const lines=(ev.data||"").split("\r\n").filter(Boolean);
-      for(const line of lines){
-        if(line.startsWith("PING")){ try{ ws.send("PONG :tmi.twitch.tv"); }catch{} continue; }
-
-        if(line.includes(" JOIN #")){
-          const badgeLive =
-            (cfg.badges!=="1") ? "badges=off" :
-            (cfg.badgeMode==="text") ? "badges=text" :
-            (!credsPresent()) ? "badges=need-creds" :
-            (badgeCache.loadedFor===cfg.channel) ? "badges=ok" : "badges=loading";
-          const paintLive = (cfg.paints==="1") ? (credsPresent() ? "paints=on" : "paints=need-creds") : "paints=off";
-          setStatus(`online ✅ #${cfg.channel} • 7TV=${sevenTvMap.size} • ${badgeLive} • ${paintLive}`);
-        }
-
-        if(line.includes(" PRIVMSG ")){
-          const p=parsePrivmsg(line);
-          if(!p) continue;
-          addMessage({
-            username:p.username,
-            displayName:p.tags["display-name"]||p.username,
-            tags:{ color:p.tags.color||null, badges:parseBadges(p.tags.badges||"") },
-            message:p.message,
-            cfg
-          });
-        }
-      }
-    };
-
-    ws.onerror=()=>{ if(token!==connToken) return; setStatus("error ❌ websocket (waiting close)"); };
-    ws.onclose=(e)=>{ if(token!==connToken) return; clearTimers(); detachAndClose(); setStatus(`closed ❌ code=${e.code} (retrying)`); scheduleReconnect(); };
-  }
-
-  // ==========================
-  // UI Wiring
-  // ==========================
-  $("menuToggle").addEventListener("click", ()=> $("menu").classList.toggle("open"));
-  $("copy").addEventListener("click", copyUrl);
-
-  $("apply").addEventListener("click", async ()=>{
-    const cfg=readMenu(); writeHash(cfg); await connect(cfg);
+/* =========================
+   CORE HELPERS
+========================= */
+const $ = id => document.getElementById(id);
+const chat = $("chat");
+const pill = $("pill");
+
+function setPill(t){ pill.textContent=t; }
+
+const CREDS_KEY="twitch_creds_session_v1";
+function getCreds(){ try{return JSON.parse(sessionStorage.getItem(CREDS_KEY));}catch{return null;} }
+function setCreds(id,token){ sessionStorage.setItem(CREDS_KEY,JSON.stringify({id,token})); }
+
+/* =========================
+   TWITCH ID LOOKUP (CACHE)
+========================= */
+const twitchIdCache=new Map();
+async function getTwitchId(login){
+  if(twitchIdCache.has(login)) return twitchIdCache.get(login);
+  const c=getCreds(); if(!c) return null;
+  const r=await fetch(`https://api.twitch.tv/helix/users?login=${login}`,{
+    headers:{ "Client-ID":c.id,"Authorization":`Bearer ${c.token}` }
   });
+  const j=await r.json();
+  const id=j?.data?.[0]?.id||null;
+  if(id) twitchIdCache.set(login,id);
+  return id;
+}
 
-  $("reset").addEventListener("click", async ()=>{
-    location.hash=""; const cfg=getConfig(); fillMenu(cfg); await connect(cfg);
-  });
+/* =========================
+   7TV PAINTS (V2 COSMETICS)
+========================= */
+function intToHex(n){
+  n>>>0;
+  const a=(n>>>24)&255,r=(n>>>16)&255,g=(n>>>8)&255,b=n&255;
+  const h=x=>x.toString(16).padStart(2,"0");
+  return a===255?`#${h(r)}${h(g)}${h(b)}`:`#${h(r)}${h(g)}${h(b)}${h(a)}`;
+}
 
-  $("saveCreds").addEventListener("click", async ()=>{
-    const clientId=$("twitchClientId").value.trim();
-    const token=$("twitchToken").value.trim();
-    if(!clientId || !token){ setStatus("missing Client ID or Token"); return; }
-    setCreds(clientId, token);
-    setStatus("creds saved (session) ✅");
-  });
+async function getPaintCSS(twitchId){
+  const r=await fetch(`https://api.7tv.app/v2/cosmetics?user_identifier=twitch_id&id=${twitchId}`);
+  const j=await r.json();
+  const paint=j?.paints?.find(p=>p.users?.includes(String(twitchId)));
+  if(!paint) return null;
+  if(paint.stops?.length){
+    const parts=paint.stops.map(s=>`${intToHex(s.color)} ${Math.round(s.at*100)}%`);
+    return `background-image:linear-gradient(${paint.angle||90}deg,${parts.join(",")});`;
+  }
+  return paint.color?`color:${intToHex(paint.color)};`:null;
+}
 
-  $("clearCreds").addEventListener("click", ()=>{
-    clearCreds();
-    $("twitchClientId").value=""; $("twitchToken").value="";
-    badgeCache={global:new Map(), channel:new Map(), loadedFor:null};
-    twitchIdCache.clear();
-    paintCache.clear();
-    setStatus("creds cleared ✅");
-  });
+/* =========================
+   CHAT MESSAGE
+========================= */
+async function addMessage(user,text){
+  const nameDiv=document.createElement("div");
+  nameDiv.className="name";
+  nameDiv.textContent=user;
 
-  $("reloadBadges").addEventListener("click", async ()=>{
-    const cfg=getConfig();
-    if(!credsPresent()){ setStatus("need creds to load badges"); return; }
-    try{
-      setStatus("loading badges…");
-      const b=await loadBadgesForChannel(cfg.channel);
-      setStatus(`badges loaded ✅ (global ${b.globalSets}, channel ${b.channelSets})`);
-    }catch(e){
-      setStatus("badge load failed ❌");
-      console.warn(e);
+  if($("enablePaints").value==="1"){
+    const id=await getTwitchId(user);
+    if(id){
+      const css=await getPaintCSS(id);
+      if(css){
+        nameDiv.classList.add("paintText");
+        nameDiv.style.cssText=css;
+      }
     }
-  });
+  }
 
-  // ==========================
-  // Boot
-  // ==========================
-  const cfg0=getConfig();
-  fillMenu(cfg0);
-  applyCss(cfg0);
-  fillCredInputs();
+  const msg=document.createElement("div");
+  msg.className="msg";
+  msg.innerHTML=`<div class="left"><div class="topline"></div><div class="text">${text}</div></div>`;
+  msg.querySelector(".topline").appendChild(nameDiv);
 
-  addMessage({
-    username:"chatbox",
-    displayName:"Chatbox",
-    tags:{ color:"#00e5ff", badges:{ broadcaster:"1" } },
-    message:"7TV paints enabled. Users with 7TV paints will show gradient names (requires creds for Twitch ID lookup).",
-    cfg: cfg0
-  });
+  chat.appendChild(msg);
+  requestAnimationFrame(()=>msg.classList.add("show"));
+}
 
-  connect(cfg0);
+/* =========================
+   DEMO MESSAGE
+========================= */
+$("apply").onclick=()=>{
+  setPill("online");
+  addMessage("freddogg23","If you have a 7TV paint, your name should be painted now.");
+};
+
+$("saveCreds").onclick=()=>{
+  setCreds($("twitchClientId").value,$("twitchToken").value);
+  setPill("creds saved");
+};
+
+$("menuToggle").onclick=()=>$("menu").classList.toggle("open");
 </script>
 </body>
 </html>
